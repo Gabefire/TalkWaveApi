@@ -1,3 +1,4 @@
+using System.Net;
 using Microsoft.EntityFrameworkCore;
 using TalkWaveApi.Services;
 
@@ -24,8 +25,23 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+//Todo see if allowedOrigins will be needed
+app.UseWebSockets();
+
 app.UseAuthorization();
 
 app.MapControllers();
+
+app.Map("/api/Message", async context =>
+{
+    if (context.WebSockets.IsWebSocketRequest)
+    {
+
+    }
+    else
+    {
+        context.Response.StatusCode = (int)HttpStatusCode.BadRequest
+    }
+});
 
 app.Run();
