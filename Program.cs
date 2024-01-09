@@ -32,16 +32,4 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-app.Map("/api/Message", async context =>
-{
-    if (context.WebSockets.IsWebSocketRequest)
-    {
-
-    }
-    else
-    {
-        context.Response.StatusCode = (int)HttpStatusCode.BadRequest
-    }
-});
-
 app.Run();

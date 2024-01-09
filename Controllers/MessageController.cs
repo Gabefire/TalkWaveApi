@@ -18,9 +18,12 @@ public class MessageController(DatabaseContext context) : ControllerBase
     private readonly DatabaseContext _context = context;
 
     // GET all messages for channel
+    // Todo need auth
+    // Todo websockets
     [HttpGet("{ChannelType}/{Id}")]
     public Task<List<Message>> Get(string ChannelType, string Id)
     {
 
     }
+
 }
