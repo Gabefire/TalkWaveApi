@@ -1,7 +1,12 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.ComponentModel;
+using System.Diagnostics;
 using System.IdentityModel.Tokens.Jwt;
+using System.Net.WebSockets;
+using System.Reflection.Metadata.Ecma335;
 using TalkWaveApi.Models;
 using TalkWaveApi.Services;
 
@@ -20,10 +25,8 @@ public class MessageController(DatabaseContext context) : ControllerBase
     private readonly DatabaseContext _context = context;
 
     // GET all messages for channel
-    // Todo need auth
-    // Todo websockets
     [HttpGet("{ChannelType}/{Id}"), Authorize]
-    public async Task<List<Message>> Get(string ChannelType, string Id)
+    public async Task<ActionResult<List<Message>>> Get(string ChannelType, string Id)
     {
         try
         {
@@ -31,22 +34,74 @@ public class MessageController(DatabaseContext context) : ControllerBase
 
             string token = HttpContext.Request.Headers.Authorization.ToString();
             var handler = new JwtSecurityTokenHandler();
-            var jwtToken = handler.ReadToken(token.Split(" ")[1]) as JwtSecurityToken ?? throw new Exception("No token");
 
-            string userEmail = jwtToken.Claims.First(claim => claim.Type == "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress").Value ?? throw new Exception("Not a valid ID");
+            //Check if JWT can be read
+            if (!handler.CanReadToken(token.Split(" ")[1]))
+            {
+                return BadRequest("Invalid Jwt");
+            };
 
-            // Find userID see if in channel
-            var userId = _context.Users.Where(x => x.Email == userEmail).FirstAsync();
+            var jwtToken = handler.ReadToken(token.Split(" ")[1]) as JwtSecurityToken;
 
-            var channelStatus = await _context.ChannelUsersStatuses.Where(x => x.UserId.ToString() == userId.ToString()).FirstOrDefaultAsync() ?? throw new Exception("User not in channel");
+            string userEmail = jwtToken!.Claims.First(claim => claim.Type == "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress").Value;
 
-            var messages = await _context.Messages.FindAsync(Id)
+
+
+            // Find user see if in channel
+            var user = await _context.Users.Where(x => x.Email == userEmail).FirstOrDefaultAsync() ?? throw new Exception("Not a valid email");
+
+            var channelStatus = await _context.ChannelUsersStatuses.FromSql($"SELECT * FROM ChannelUserStatus WHERE UserId = {user.UserId} and ChannelId = {Id}").FirstOrDefaultAsync() ?? throw new Exception("User not in channel");
+
+            var messages = await _context.Messages.Where(x => x.ChannelId.ToString() == Id).ToListAsync();
+
+            List<MessageDto> messageDtos = [];
+
+            foreach (Message message in messages)
+            {
+                MessageDto messageDto = new()
+                {
+                    Author = message.Author,
+                    Owner = message.UserId == user.UserId,
+                    Content = message.Content,
+                    CreatedAt = message.CreatedAt
+                };
+            }
+
+            return Ok(messageDtos);
 
         }
-        catch
+        catch (Exception e)
         {
-            return BadRequest("Invalid token");
+            return BadRequest(e.Message);
         }
     }
 
+
+
+    // Websockets
+    [Route("/ws/{ChannelType}/{Id}"), Authorize]
+    public async Task GetWs(string ChannelType, string Id)
+    {
+        if (HttpContext.WebSockets.IsWebSocketRequest)
+        {
+            // Not using compression for right now
+            using var websocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
+            await Echo(websocket);
+        }
+        else
+        {
+            HttpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
+        }
+    }
+
+
+    private static async Task Echo(WebSocket webSocket)
+    {
+        var buffer = new byte[1024 * 4];
+        var receiveResult = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+        while (!receiveResult.CloseStatus.HasValue)
+        {
+            await webSocket.SendAsync()
+        }
+    }
 }

@@ -2,7 +2,7 @@
 using System.ComponentModel.DataAnnotations;
 
 namespace TalkWaveApi.Models;
-public class ChannelUsersStatus
+public class ChannelUserStatus
 {
     [Key]
     public int ChannelUsersStatusId { get; set; }

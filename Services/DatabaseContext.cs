@@ -7,5 +7,5 @@ public class DatabaseContext(DbContextOptions<DatabaseContext> options) : DbCont
     public DbSet<Channel> Channels { get; set; }
     public DbSet<Message> Messages { get; set; }
     public DbSet<User> Users { get; set; }
-    public DbSet<ChannelUsersStatus> ChannelUsersStatuses { get; set; }
+    public DbSet<ChannelUserStatus> ChannelUsersStatuses { get; set; }
 }
