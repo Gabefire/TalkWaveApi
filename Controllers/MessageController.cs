@@ -1,12 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.ComponentModel;
-using System.Diagnostics;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net.WebSockets;
-using System.Reflection.Metadata.Ecma335;
+using System.Text;
 using TalkWaveApi.Models;
 using TalkWaveApi.Services;
 
@@ -14,7 +11,7 @@ namespace TalkWaveApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class MessageController(DatabaseContext context) : ControllerBase
+public class MessageController(DatabaseContext context, ILogger<ChannelController> logger) : ControllerBase
 {
     private enum ChannelEnum
     {
@@ -23,6 +20,9 @@ public class MessageController(DatabaseContext context) : ControllerBase
     }
 
     private readonly DatabaseContext _context = context;
+    private readonly ILogger _logger = logger;
+
+    private static readonly Message message = new();
 
     // GET all messages for channel
     [HttpGet("{ChannelType}/{Id}"), Authorize]
@@ -79,7 +79,7 @@ public class MessageController(DatabaseContext context) : ControllerBase
 
 
     // Websockets
-    [Route("/ws/{ChannelType}/{Id}"), Authorize]
+    [HttpGet("ws/{ChannelType}/{Id}")]
     public async Task GetWs(string ChannelType, string Id)
     {
         if (HttpContext.WebSockets.IsWebSocketRequest)
@@ -95,13 +95,24 @@ public class MessageController(DatabaseContext context) : ControllerBase
     }
 
 
-    private static async Task Echo(WebSocket webSocket)
+    private async Task Echo(WebSocket webSocket)
     {
+
         var buffer = new byte[1024 * 4];
-        var receiveResult = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+        var clientBuffer = new ArraySegment<byte>(buffer);
+        var receiveResult = await webSocket.ReceiveAsync(clientBuffer, CancellationToken.None);
+        _logger.LogInformation("{message}", "connection made");
         while (!receiveResult.CloseStatus.HasValue)
         {
-            await webSocket.SendAsync()
+            _logger.LogInformation("{Message}", receiveResult.ToString());
+            Console.WriteLine(Encoding.UTF8.GetString(buffer, 0, receiveResult.Count));
+            receiveResult = await webSocket.ReceiveAsync(clientBuffer, CancellationToken.None);
         }
+
+        await webSocket.CloseAsync(
+            receiveResult.CloseStatus.Value,
+            receiveResult.CloseStatusDescription,
+            CancellationToken.None);
+
     }
 }
