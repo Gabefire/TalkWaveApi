@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Collections.Concurrent;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net.WebSockets;
 using System.Text;
@@ -23,6 +24,9 @@ public class MessageController(DatabaseContext context, ILogger<ChannelControlle
     private readonly ILogger _logger = logger;
 
     private static readonly Message message = new();
+
+    // websocket connections
+    public static readonly ConcurrentDictionary<string, WebSocket> connections = new();
 
     // GET all messages for channel
     [HttpGet("{ChannelType}/{Id}"), Authorize]
@@ -78,7 +82,7 @@ public class MessageController(DatabaseContext context, ILogger<ChannelControlle
 
 
 
-    // Websockets
+    // Websocket route
     [HttpGet("ws/{ChannelType}/{Id}")]
     public async Task GetWs(string ChannelType, string Id)
     {
@@ -98,15 +102,37 @@ public class MessageController(DatabaseContext context, ILogger<ChannelControlle
     private async Task Echo(WebSocket webSocket)
     {
 
+        string wsID = Guid.NewGuid().ToString();
+        connections.TryAdd(wsID, webSocket);
+
         var buffer = new byte[1024 * 4];
         var clientBuffer = new ArraySegment<byte>(buffer);
         var receiveResult = await webSocket.ReceiveAsync(clientBuffer, CancellationToken.None);
+
         _logger.LogInformation("{message}", "connection made");
+
         while (!receiveResult.CloseStatus.HasValue)
         {
-            _logger.LogInformation("{Message}", receiveResult.ToString());
-            Console.WriteLine(Encoding.UTF8.GetString(buffer, 0, receiveResult.Count));
+            _logger.LogInformation("{Message}", Encoding.UTF8.GetString(buffer, 0, receiveResult.Count));
+
             receiveResult = await webSocket.ReceiveAsync(clientBuffer, CancellationToken.None);
+
+
+
+            foreach (var item in connections)
+            {
+
+                await item.Value.SendAsync(
+                    clientBuffer,
+                    receiveResult.MessageType,
+                    receiveResult.EndOfMessage,
+                    CancellationToken.None
+                );
+
+            }
+
+
+
         }
 
         await webSocket.CloseAsync(
@@ -115,4 +141,6 @@ public class MessageController(DatabaseContext context, ILogger<ChannelControlle
             CancellationToken.None);
 
     }
+
+    private async getMessages(string ChannelType, string Id, HttpContext httpContext)
 }
