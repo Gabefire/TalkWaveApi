@@ -8,17 +8,21 @@ using System.Text;
 using System.Text.Json;
 using TalkWaveApi.Models;
 using TalkWaveApi.Services;
+using TalkWaveApi.Util;
 
 namespace TalkWaveApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class MessageController(DatabaseContext context, ILogger<ChannelController> logger) : ControllerBase
+public class MessageController(DatabaseContext context, ILogger<ChannelController> logger, Validator validate) : ControllerBase
 {
     private readonly DatabaseContext _context = context;
     private readonly ILogger _logger = logger;
 
+    private readonly Validator _validate = validate;
+
     // websocket connections
+    // Maybe add a dictionary with user for websocket to validate session
     public static readonly ConcurrentDictionary<string, List<WebSocket>> connections = new();
 
     // Websocket messages
@@ -32,22 +36,10 @@ public class MessageController(DatabaseContext context, ILogger<ChannelControlle
             return BadRequest();
         }
 
-        //JWT for user ID
-        string token = HttpContext.Request.Headers.Authorization.ToString();
-        var handler = new JwtSecurityTokenHandler();
-        //Check if JWT can be read
-        if (!handler.CanReadToken(token.Split(" ")[1]))
-        {
-            return BadRequest("Invalid Jwt");
-        };
-        var jwtToken = handler.ReadToken(token.Split(" ")[1]) as JwtSecurityToken;
-        string userEmail = jwtToken!.Claims.First(claim => claim.Type == "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress").Value;
-
-        //Validate user
-        var user = await _context.Users.Where(x => x.Email == userEmail).FirstOrDefaultAsync();
+        var user = await _validate.ValidateJwt(HttpContext);
         if (user == null)
         {
-            return BadRequest();
+            return Unauthorized();
         }
 
         //Validate Id can be casted as int
@@ -69,8 +61,6 @@ public class MessageController(DatabaseContext context, ILogger<ChannelControlle
         {
             return BadRequest("User not in channel");
         }
-
-
 
         if (HttpContext.WebSockets.IsWebSocketRequest)
         {
