@@ -30,8 +30,13 @@ public class UserController(IConfiguration configuration, DatabaseContext contex
 
         try
         {
-            // Check if email is taken
-            var emailTest = await _context.Users.FirstOrDefaultAsync(x => x.Email == request.Email) ?? throw new Exception("Email already taken");
+            // Validate if email is taken
+            var emailTest = await _context.Users.FirstOrDefaultAsync(x => x.Email == request.Email);
+
+            if (emailTest != null)
+            {
+                throw new Exception("Email already taken");
+            }
 
         }
         catch (Exception e)

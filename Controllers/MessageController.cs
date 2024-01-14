@@ -168,7 +168,7 @@ public class MessageController(DatabaseContext context, ILogger<ChannelControlle
             receiveResult = await webSocket.ReceiveAsync(clientBuffer, CancellationToken.None);
         }
 
-        //Clean up close websocket, remove websocket, delete channel if no one is present
+        //Clean up: close websocket, remove websocket, delete channel if no one is present
         await webSocket.CloseAsync(
             receiveResult.CloseStatus.Value,
             receiveResult.CloseStatusDescription,
