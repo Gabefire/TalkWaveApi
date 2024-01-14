@@ -6,6 +6,7 @@ public class Channel
 {
     [Key]
     public int ChannelId { get; set; }
+    public string Name { get; set; } = string.Empty;
     public int UserId { get; set; }
     public string Type { get; set; } = "Group";
     public string ChannelPicLink { get; set; } = string.Empty;

@@ -5,6 +5,7 @@ using System.Collections.Concurrent;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net.WebSockets;
 using System.Text;
+using System.Text.Json;
 using TalkWaveApi.Models;
 using TalkWaveApi.Services;
 
@@ -14,177 +15,201 @@ namespace TalkWaveApi.Controllers;
 [Route("api/[controller]")]
 public class MessageController(DatabaseContext context, ILogger<ChannelController> logger) : ControllerBase
 {
-    private enum ChannelEnum
-    {
-        User = 1,
-        Group = 2,
-    }
-
     private readonly DatabaseContext _context = context;
     private readonly ILogger _logger = logger;
 
-    private static readonly Message message = new();
-
     // websocket connections
-    public static readonly ConcurrentDictionary<string, WebSocket> connections = new();
+    public static readonly ConcurrentDictionary<string, List<WebSocket>> connections = new();
 
-    // GET all messages for channel
+    // Websocket messages
     [HttpGet("{ChannelType}/{Id}"), Authorize]
-    public async Task<ActionResult<List<Message>>> Get(string ChannelType, string Id)
+    public async Task<IActionResult> GetWs(string ChannelType, string Id)
     {
-        try
+        // Validate group size
+        connections.TryGetValue(Id, out List<WebSocket>? connectionList);
+        if (ChannelType == "user" && connectionList != null && connectionList.Count >= 2)
         {
-            //Validate Channel Id
-            var channel = await _context.Channels.FindAsync(Id) ?? throw new Exception("Not a valid channel");
-
-            //JWT for user ID
-            string token = HttpContext.Request.Headers.Authorization.ToString();
-            var handler = new JwtSecurityTokenHandler();
-            //Check if JWT can be read
-            if (!handler.CanReadToken(token.Split(" ")[1]))
-            {
-                return BadRequest("Invalid Jwt");
-            };
-            var jwtToken = handler.ReadToken(token.Split(" ")[1]) as JwtSecurityToken;
-            string userEmail = jwtToken!.Claims.First(claim => claim.Type == "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress").Value;
-
-
-
-            // Find user see if in channel
-            var user = await _context.Users.Where(x => x.Email == userEmail).FirstOrDefaultAsync() ?? throw new Exception("Not a valid email");
-
-            var channelStatus = await _context.ChannelUsersStatuses.FromSql($"SELECT * FROM ChannelUserStatus WHERE UserId = {user.UserId} and ChannelId = {Id}").FirstOrDefaultAsync() ?? throw new Exception("User not in channel");
-
-            var messages = await _context.Messages.Where(x => x.ChannelId.ToString() == Id).ToListAsync();
-
-            List<MessageDto> messageDtos = [];
-
-            foreach (Message message in messages)
-            {
-                var userName = await _context.Users.Where(u => u.UserId == message.UserId).Select(u => u.UserName).SingleOrDefaultAsync();
-
-
-                MessageDto messageDto = new()
-                {
-                    Author = userName!.ToString()!,
-                    IsOwner = message.UserId == user.UserId,
-                    Content = message.Content,
-                    CreatedAt = message.CreatedAt
-                };
-            }
-
-            return Ok(messageDtos);
-
+            return BadRequest();
         }
-        catch (Exception e)
+
+        //JWT for user ID
+        string token = HttpContext.Request.Headers.Authorization.ToString();
+        var handler = new JwtSecurityTokenHandler();
+        //Check if JWT can be read
+        if (!handler.CanReadToken(token.Split(" ")[1]))
         {
-            return BadRequest(e.Message);
+            return BadRequest("Invalid Jwt");
+        };
+        var jwtToken = handler.ReadToken(token.Split(" ")[1]) as JwtSecurityToken;
+        string userEmail = jwtToken!.Claims.First(claim => claim.Type == "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress").Value;
+
+        //Validate user
+        var user = await _context.Users.Where(x => x.Email == userEmail).FirstOrDefaultAsync();
+        if (user == null)
+        {
+            return BadRequest();
         }
-    }
 
-
-
-    // Websocket route
-    [HttpGet("ws/{ChannelType}/{Id}")]
-    public async Task GetWs(string ChannelType, string Id)
-    {
         //Validate Id can be casted as int
         if (!int.TryParse(Id, out int ChannelId))
         {
-            HttpContext.Response.StatusCode = StatusCodes.Status404NotFound;
+            return BadRequest();
         }
 
-        //Todo JWT
-        User user = new()
+        //Validate channel exists
+        var channel = await _context.Channels.FindAsync(ChannelId);
+        if (channel == null)
         {
-            UserId = 123,
-            UserName = "test",
-            HashedPassword = "123",
-            Email = "test",
-        };
+            return BadRequest("Channel does not exist");
+        }
+
+        //Validate user is in channel
+        var userTest = await _context.ChannelUsersStatuses.Where(x => x.ChannelId == ChannelId).Where(x => x.UserId == user.UserId).FirstOrDefaultAsync();
+        if (userTest == null)
+        {
+            return BadRequest("User not in channel");
+        }
+
+
 
         if (HttpContext.WebSockets.IsWebSocketRequest)
         {
             using var websocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
-            await Echo(websocket, user, ChannelId);
+
+            var userName = _context.Users.Where(u => u.UserId == user.UserId).Select(u => u.UserName).SingleOrDefault();
+
+            string author = "Anonymous";
+
+            if (userName != null)
+            {
+                author = userName;
+            }
+
+            await Echo(websocket, user, author, ChannelId, channel.Name);
         }
         else
         {
-            HttpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
+            return BadRequest("Not a websocket request");
         }
+
+        return new EmptyResult();
     }
 
 
-    private async Task Echo(WebSocket webSocket, User user, int ChannelId)
+    private async Task Echo(WebSocket webSocket, User user, string userName, int ChannelId, string channelName)
     {
-
-        string wsID = Guid.NewGuid().ToString();
-        connections.TryAdd(wsID, webSocket);
+        connections.AddOrUpdate(ChannelId.ToString(), [webSocket], (key, list) => { list.Add(webSocket); return list; });
 
         var buffer = new byte[1024 * 4];
         var clientBuffer = new ArraySegment<byte>(buffer);
         var receiveResult = await webSocket.ReceiveAsync(clientBuffer, CancellationToken.None);
 
-        _logger.LogInformation("{message}", "connection made");
+        _logger.LogInformation("info: {User} connected to {Channel}", userName, channelName);
+        _logger.LogInformation("info: Connections in Channel: {Count}", connections[ChannelId.ToString()].Count);
 
-        //Get username              
-        var userName = await _context.Users.Where(u => u.UserId == user.UserId).Select(u => u.UserName).SingleOrDefaultAsync();
+        // Get current messages in channel, serialize and send to user
+        var jsonMessages = JsonSerializer.SerializeToUtf8Bytes(GetMessageDtos(ChannelId, user.UserId));
+        await webSocket.SendAsync(
+            jsonMessages,
+            WebSocketMessageType.Binary,
+            true,
+            CancellationToken.None
+            );
 
         while (!receiveResult.CloseStatus.HasValue)
         {
             //Get message
             string result = Encoding.UTF8.GetString(buffer, 0, receiveResult.Count);
 
-            _logger.LogInformation("{Message}", result);
+            if (string.IsNullOrEmpty(result))
+            {
+                continue;
+            }
+
+            DateTime currentDate = DateTime.UtcNow;
 
             Message message = new()
             {
                 UserId = user.UserId,
                 ChannelId = ChannelId,
                 Content = result,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = currentDate
             };
 
+            //Add message to database
             await _context.Messages.AddAsync(message);
+
 
             MessageDto messageDto = new()
             {
-                Author = userName!
-                Content = user
+                Author = userName,
+                Content = result,
+                CreatedAt = currentDate,
             };
-
-            receiveResult = await webSocket.ReceiveAsync(clientBuffer, CancellationToken.None);
-
-
-
-            foreach (var item in connections)
+            foreach (var item in connections[ChannelId.ToString()])
             {
 
-
-                if (item.Value == webSocket)
+                if (item == webSocket)
                 {
                     messageDto.IsOwner = true;
                 }
 
+                var jsonData = JsonSerializer.SerializeToUtf8Bytes(messageDto);
 
-                await item.Value.SendAsync(
-                    clientBuffer,
-                    receiveResult.MessageType,
-                    receiveResult.EndOfMessage,
+                await item.SendAsync(
+                    jsonData,
+                    WebSocketMessageType.Binary,
+                    true,
                     CancellationToken.None
                 );
 
             }
 
-
-
+            receiveResult = await webSocket.ReceiveAsync(clientBuffer, CancellationToken.None);
         }
 
+        //Clean up close websocket, remove websocket, delete channel if no one is present
         await webSocket.CloseAsync(
             receiveResult.CloseStatus.Value,
             receiveResult.CloseStatusDescription,
             CancellationToken.None);
 
+        connections.AddOrUpdate(ChannelId.ToString(), [webSocket], (key, list) => { list.Remove(webSocket); return list; });
+
+        if (connections[ChannelId.ToString()].Count == 0)
+        {
+            connections.TryRemove(ChannelId.ToString(), out _);
+        }
+
+    }
+
+
+    private async Task<List<MessageDto>> GetMessageDtos(int ChannelId, int userId)
+    {
+        var messages = await _context.Messages.Where(x => x.ChannelId == ChannelId).ToListAsync();
+
+        List<MessageDto> messageDtos = [];
+
+        foreach (Message message in messages)
+        {
+            var userName = await _context.Users.Where(u => u.UserId == message.UserId).Select(u => u.UserName).SingleOrDefaultAsync();
+
+            string author = "Anonymous";
+            if (userName != null)
+            {
+                author = userName;
+            }
+
+            MessageDto messageDto = new()
+            {
+                Author = author,
+                IsOwner = message.UserId == userId,
+                Content = message.Content,
+                CreatedAt = message.CreatedAt
+            };
+        }
+
+        return messageDtos;
     }
 
 }
