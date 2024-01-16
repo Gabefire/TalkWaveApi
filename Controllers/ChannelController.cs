@@ -73,4 +73,35 @@ public class ChannelController(ILogger<ChannelController> logger, DatabaseContex
 
         return Ok(channelDto);
     }
-}
+    [HttpDelete("channel/{Id}")]
+    public async Task<ActionResult> DeleteChannel(string Id)
+    {
+        if (!int.TryParse(Id, out int ChannelId))
+        {
+            return BadRequest();
+        }
+        var user = await _validate.ValidateJwt(HttpContext);
+        if (user == null)
+        {
+            return Unauthorized();
+        }
+
+        var channel = await _context.Channels.FindAsync(ChannelId);
+        if (channel == null)
+        {
+            return BadRequest();
+        }
+
+        if (user.UserId != channel.UserId)
+        {
+            return Unauthorized();
+        }
+
+        _context.Channels.Remove(channel);
+        await _context.SaveChangesAsync();
+
+        return Ok();
+    }
+
+    // Todo add method to edit channel
+};

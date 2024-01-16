@@ -29,16 +29,12 @@ public class UserController(IConfiguration configuration, DatabaseContext contex
             return BadRequest("Please include a username, email and password");
         }
 
-
         // Validate if email is taken
         var emailTest = await _context.Users.FirstOrDefaultAsync(x => x.Email == request.Email);
         if (emailTest != null)
         {
             return Conflict();
         }
-
-
-
 
         string passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
 
@@ -86,6 +82,55 @@ public class UserController(IConfiguration configuration, DatabaseContext contex
         return Ok(token);
     }
 
+    // PUT edit user
+    [HttpPut("edit")]
+    public async Task<ActionResult> EditUser(UserDto userDto)
+    {
+        var user = await _validate.ValidateJwt(HttpContext);
+        if (user == null)
+        {
+            return Unauthorized();
+        }
+
+        if (!userDto.UserName.IsNullOrEmpty())
+        {
+            user.UserName = userDto.UserName;
+        }
+
+        if (!userDto.Email.IsNullOrEmpty())
+        {
+            user.Email = userDto.Email;
+        }
+
+        if (!userDto.Password.IsNullOrEmpty())
+        {
+            string passwordHash = BCrypt.Net.BCrypt.HashPassword(userDto.Password);
+            user.HashedPassword = passwordHash;
+        }
+
+        await _context.SaveChangesAsync();
+
+        return Ok();
+    }
+
+    // GET search for user might make this a query string
+    [HttpGet("{name}")]
+    public async Task<ActionResult> SearchUser(string name)
+    {
+        // Validate JWT and get user
+        var user = await _validate.ValidateJwt(HttpContext);
+        if (user == null)
+        {
+            return Unauthorized();
+        }
+
+        var userList = await _context.ChannelUsersStatuses.FromSql(
+        $"SELECT Name, UserId FROM User WHERE Name ILIKE {name}% LIMIT 10"
+        ).ToListAsync();
+
+        return Ok(userList);
+    }
+
     // Method to make JWT
     private string CreateToken(User user)
     {
@@ -114,23 +159,4 @@ public class UserController(IConfiguration configuration, DatabaseContext contex
 
         return jwt;
     }
-
-    // GET search for user might make this a query string
-    [HttpGet("{name}")]
-    public async Task<ActionResult> SearchChannel(string name)
-    {
-        // Validate JWT and get user
-        var user = await _validate.ValidateJwt(HttpContext);
-        if (user == null)
-        {
-            return Unauthorized();
-        }
-
-        var channelUserList = await _context.ChannelUsersStatuses.FromSql(
-        $"SELECT Name, UserId FROM User WHERE Name ILIKE {name}% LIMIT 10"
-        ).ToListAsync();
-
-        return Ok(channelUserList);
-    }
-
 }
