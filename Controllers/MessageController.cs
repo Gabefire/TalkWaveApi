@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Concurrent;
-using System.IdentityModel.Tokens.Jwt;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
@@ -198,5 +197,4 @@ public class MessageController(DatabaseContext context, ILogger<ChannelControlle
 
         return messageDtos;
     }
-
 }

@@ -38,6 +38,10 @@ public class UserChannelController(ILogger<ChannelController> logger, DatabaseCo
         }
 
         var requestedUser = await _context.Users.FindAsync(Id);
+        if (requestedUser == null)
+        {
+            return BadRequest();
+        }
 
         try
         {
@@ -64,13 +68,15 @@ public class UserChannelController(ILogger<ChannelController> logger, DatabaseCo
             ChannelUserStatus requestedUserCSU = new()
             {
                 ChannelId = channel.ChannelId,
-                UserId = user.UserId
+                UserId = requestedUser.UserId
             };
 
             await _context.ChannelUsersStatuses.AddAsync(userCSU);
             await _context.ChannelUsersStatuses.AddAsync(requestedUserCSU);
 
             await _context.SaveChangesAsync();
+
+            _logger.LogInformation("info: New user channel created: {UserGroup}", channel.ChannelId);
 
             return CreatedAtAction("GetChannel", new { id = channel.ChannelId }, channel);
         }

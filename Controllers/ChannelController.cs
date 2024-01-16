@@ -73,6 +73,8 @@ public class ChannelController(ILogger<ChannelController> logger, DatabaseContex
 
         return Ok(channelDto);
     }
+
+    // DELETE channel
     [HttpDelete("channel/{Id}")]
     public async Task<ActionResult> DeleteChannel(string Id)
     {

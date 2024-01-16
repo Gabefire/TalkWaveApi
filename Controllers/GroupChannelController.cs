@@ -17,7 +17,7 @@ public class GroupChannelController(ILogger<ChannelController> logger, DatabaseC
     private readonly ILogger<ChannelController> _logger = logger;
 
     // PUT join group channel
-    [HttpPut("{Id}")]
+    [HttpPut("join/{Id}")]
     public async Task<ActionResult> JoinChannel(string Id)
     {
         if (!int.TryParse(Id, out int ChannelId))
@@ -79,6 +79,8 @@ public class GroupChannelController(ILogger<ChannelController> logger, DatabaseC
         await _context.Channels.AddAsync(channel);
         await _context.SaveChangesAsync();
 
+        _logger.LogInformation("info: New group channel created: {UserGroup}", channel.Name);
+
         return CreatedAtAction("GetChannel", new { id = channel.ChannelId }, channel);
     }
     // GET search groups for likeness
@@ -98,5 +100,31 @@ public class GroupChannelController(ILogger<ChannelController> logger, DatabaseC
         ).ToListAsync();
 
         return Ok(channelGroupList);
+    }
+
+    //PUT leave channel
+    [HttpPut("leave/{Id}")]
+    public async Task<ActionResult> LeaveChannel(string Id)
+    {
+        if (!int.TryParse(Id, out int ChannelId))
+        {
+            return BadRequest();
+        }
+        var user = await _validate.ValidateJwt(HttpContext);
+        if (user == null)
+        {
+            return Unauthorized();
+        }
+
+        var cus = await _context.ChannelUsersStatuses.Where(x => x.UserId == user.UserId).Where(x => x.ChannelId == ChannelId).FirstOrDefaultAsync();
+        if (cus == null)
+        {
+            return Ok();
+        }
+
+        _context.ChannelUsersStatuses.Remove(cus);
+        await _context.SaveChangesAsync();
+
+        return Ok();
     }
 }

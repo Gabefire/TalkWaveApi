@@ -48,6 +48,7 @@ public class UserController(IConfiguration configuration, DatabaseContext contex
         {
             await _context.Users.AddAsync(user);
             await _context.SaveChangesAsync();
+            _logger.LogInformation("info: New user joined: {User}", user.UserName);
             return Created();
         }
         catch
