@@ -97,7 +97,6 @@ public class MessageController(DatabaseContext context, ILogger<ChannelControlle
         _logger.LogInformation("info: {User} connected to {Channel}", userName, channelName);
         _logger.LogInformation("info: Connections in Channel: {Count}", connections[ChannelId.ToString()].Count);
 
-        // Get current messages in channel, serialize and send to user
         var jsonMessages = JsonSerializer.SerializeToUtf8Bytes(GetMessageDtos(ChannelId, user.UserId));
         await webSocket.SendAsync(
             jsonMessages,
@@ -108,7 +107,6 @@ public class MessageController(DatabaseContext context, ILogger<ChannelControlle
 
         while (!receiveResult.CloseStatus.HasValue)
         {
-            //Get message
             string result = Encoding.UTF8.GetString(buffer, 0, receiveResult.Count);
 
             if (string.IsNullOrEmpty(result))
@@ -126,7 +124,6 @@ public class MessageController(DatabaseContext context, ILogger<ChannelControlle
                 CreatedAt = currentDate
             };
 
-            //Add message to database
             await _context.Messages.AddAsync(message);
 
 
@@ -158,7 +155,7 @@ public class MessageController(DatabaseContext context, ILogger<ChannelControlle
             receiveResult = await webSocket.ReceiveAsync(clientBuffer, CancellationToken.None);
         }
 
-        //Clean up: close websocket, remove websocket, delete channel if no one is present
+        //Clean up
         await webSocket.CloseAsync(
             receiveResult.CloseStatus.Value,
             receiveResult.CloseStatusDescription,

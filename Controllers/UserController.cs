@@ -6,17 +6,18 @@ using System.IdentityModel.Tokens.Jwt;
 using TalkWaveApi.Models;
 using TalkWaveApi.Services;
 using Microsoft.EntityFrameworkCore;
+using TalkWaveApi.Util;
 
 namespace TalkWaveApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class UserController(IConfiguration configuration, DatabaseContext context, ILogger logger) : ControllerBase
+public class UserController(IConfiguration configuration, DatabaseContext context, ILogger logger, Validator validate) : ControllerBase
 {
     private static readonly User user = new();
     private readonly DatabaseContext _context = context;
     private readonly IConfiguration _configuration = configuration;
-
+    private readonly Validator _validate = validate;
     private readonly ILogger _logger = logger;
 
     // POST Sign-up
@@ -28,21 +29,16 @@ public class UserController(IConfiguration configuration, DatabaseContext contex
             return BadRequest("Please include a username, email and password");
         }
 
-        try
-        {
-            // Validate if email is taken
-            var emailTest = await _context.Users.FirstOrDefaultAsync(x => x.Email == request.Email);
 
-            if (emailTest != null)
-            {
-                throw new Exception("Email already taken");
-            }
-
-        }
-        catch (Exception e)
+        // Validate if email is taken
+        var emailTest = await _context.Users.FirstOrDefaultAsync(x => x.Email == request.Email);
+        if (emailTest != null)
         {
-            return BadRequest(e.Message);
+            return Conflict();
         }
+
+
+
 
         string passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
 
@@ -56,7 +52,7 @@ public class UserController(IConfiguration configuration, DatabaseContext contex
         {
             await _context.Users.AddAsync(user);
             await _context.SaveChangesAsync();
-            return Ok();
+            return Created();
         }
         catch
         {
@@ -118,4 +114,23 @@ public class UserController(IConfiguration configuration, DatabaseContext contex
 
         return jwt;
     }
+
+    // GET search for user might make this a query string
+    [HttpGet("{name}")]
+    public async Task<ActionResult> SearchChannel(string name)
+    {
+        // Validate JWT and get user
+        var user = await _validate.ValidateJwt(HttpContext);
+        if (user == null)
+        {
+            return Unauthorized();
+        }
+
+        var channelUserList = await _context.ChannelUsersStatuses.FromSql(
+        $"SELECT Name, UserId FROM User WHERE Name ILIKE {name}% LIMIT 10"
+        ).ToListAsync();
+
+        return Ok(channelUserList);
+    }
+
 }
