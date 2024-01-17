@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace TalkWaveApi.Migrations
 {
     /// <inheritdoc />
-    public partial class talkwave : Migration
+    public partial class TalkWave : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

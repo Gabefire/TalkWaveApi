@@ -13,7 +13,7 @@ namespace TalkWaveApi.Migrations
 {
     [DbContext(typeof(DatabaseContext))]
     [Migration("20240111134806_talkwave")]
-    partial class talkwave
+    partial class TalkWave
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

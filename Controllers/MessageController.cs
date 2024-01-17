@@ -7,18 +7,18 @@ using System.Text;
 using System.Text.Json;
 using TalkWaveApi.Models;
 using TalkWaveApi.Services;
-using TalkWaveApi.Util;
+using TalkWaveApi.Interface;
 
 namespace TalkWaveApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class MessageController(DatabaseContext context, ILogger<ChannelController> logger, Validator validate) : ControllerBase
+public class MessageController(DatabaseContext context, ILogger<MessageController> logger, IValidator validate) : ControllerBase
 {
     private readonly DatabaseContext _context = context;
     private readonly ILogger _logger = logger;
 
-    private readonly Validator _validate = validate;
+    private readonly IValidator _validate = validate;
 
     // websocket connections
     // Maybe add a dictionary with user for websocket to validate session

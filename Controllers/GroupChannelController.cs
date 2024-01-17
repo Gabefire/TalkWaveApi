@@ -2,19 +2,19 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TalkWaveApi.Models;
 using TalkWaveApi.Services;
-using TalkWaveApi.Util;
+using TalkWaveApi.Interface;
 
 namespace TalkWaveApi.Controllers;
 
 [ApiController]
-[Route("api/channel/group")]
-public class GroupChannelController(ILogger<ChannelController> logger, DatabaseContext context, Validator validate) : ControllerBase
+[Route("api/[controller]")]
+public class GroupChannelController(ILogger<GroupChannelController> logger, DatabaseContext context, IValidator validate) : ControllerBase
 {
     private readonly DatabaseContext _context = context;
 
-    private readonly Validator _validate = validate;
+    private readonly IValidator _validate = validate;
 
-    private readonly ILogger<ChannelController> _logger = logger;
+    private readonly ILogger _logger = logger;
 
     // PUT join group channel
     [HttpPut("join/{Id}")]
@@ -81,7 +81,10 @@ public class GroupChannelController(ILogger<ChannelController> logger, DatabaseC
 
         _logger.LogInformation("info: New group channel created: {UserGroup}", channel.Name);
 
-        return CreatedAtAction("GetChannel", new { id = channel.ChannelId }, channel);
+
+        string actionName = nameof(ChannelController.GetChannel);
+
+        return CreatedAtAction(actionName, "Channel", new { id = channel.ChannelId }, channel);
     }
     // GET search groups for likeness
     [HttpGet("{name}")]

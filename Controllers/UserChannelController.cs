@@ -3,19 +3,19 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using TalkWaveApi.Models;
 using TalkWaveApi.Services;
-using TalkWaveApi.Util;
+using TalkWaveApi.Interface;
 
 namespace TalkWaveApi.Controllers;
 
 [ApiController]
-[Route("api/channel/user")]
-public class UserChannelController(ILogger<ChannelController> logger, DatabaseContext context, Validator validate) : ControllerBase
+[Route("api/[controller]")]
+public class UserChannelController(ILogger<UserChannelController> logger, DatabaseContext context, IValidator validate) : ControllerBase
 {
     private readonly DatabaseContext _context = context;
 
-    private readonly Validator _validate = validate;
+    private readonly IValidator _validate = validate;
 
-    private readonly ILogger<ChannelController> _logger = logger;
+    private readonly ILogger _logger = logger;
 
     // POST new user channel
     [HttpPost]
@@ -76,9 +76,11 @@ public class UserChannelController(ILogger<ChannelController> logger, DatabaseCo
 
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("info: New user channel created: {UserGroup}", channel.ChannelId);
+            _logger.LogInformation("info: New user channel created: {UserGroup}", nameof(ChannelController.GetChannel));
 
-            return CreatedAtAction("GetChannel", new { id = channel.ChannelId }, channel);
+            string actionName = nameof(ChannelController.GetChannel);
+
+            return CreatedAtAction(actionName, "Channel", new { id = channel.ChannelId }, channel);
         }
     }
 

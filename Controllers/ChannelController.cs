@@ -2,23 +2,23 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TalkWaveApi.Models;
 using TalkWaveApi.Services;
-using TalkWaveApi.Util;
+using TalkWaveApi.Interface;
 
 namespace TalkWaveApi.Controllers;
 
 [ApiController]
-[Route("api/")]
-public class ChannelController(ILogger<ChannelController> logger, DatabaseContext context, Validator validate) : ControllerBase
+[Route("api/[controller]")]
+public class ChannelController(ILogger<ChannelController> logger, DatabaseContext context, IValidator validate) : ControllerBase
 {
     private readonly DatabaseContext _context = context;
 
-    private readonly Validator _validate = validate;
+    private readonly IValidator _validate = validate;
 
-    private readonly ILogger<ChannelController> _logger = logger;
+    private readonly ILogger _logger = logger;
 
 
     // GET all message board user is joined
-    [HttpGet("channels")]
+    [HttpGet]
     public async Task<ActionResult> GetChannels()
     {
         // Validate JWT and get user
@@ -37,7 +37,7 @@ public class ChannelController(ILogger<ChannelController> logger, DatabaseContex
 
     }
     // GET single channel
-    [HttpGet("channel/{Id}")]
+    [HttpGet("{Id}")]
     public async Task<ActionResult> GetChannel(string Id)
     {
         if (!int.TryParse(Id, out int ChannelId))
@@ -66,7 +66,6 @@ public class ChannelController(ILogger<ChannelController> logger, DatabaseContex
         ChannelDto channelDto = new()
         {
             Name = channel.Name,
-            ChannelId = channel.ChannelId,
             Type = channel.Type,
             IsOwner = user.UserId == channel.UserId,
         };
@@ -75,7 +74,7 @@ public class ChannelController(ILogger<ChannelController> logger, DatabaseContex
     }
 
     // DELETE channel
-    [HttpDelete("channel/{Id}")]
+    [HttpDelete("{Id}")]
     public async Task<ActionResult> DeleteChannel(string Id)
     {
         if (!int.TryParse(Id, out int ChannelId))

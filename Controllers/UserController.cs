@@ -6,18 +6,18 @@ using System.IdentityModel.Tokens.Jwt;
 using TalkWaveApi.Models;
 using TalkWaveApi.Services;
 using Microsoft.EntityFrameworkCore;
-using TalkWaveApi.Util;
+using TalkWaveApi.Interface;
 
 namespace TalkWaveApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class UserController(IConfiguration configuration, DatabaseContext context, ILogger logger, Validator validate) : ControllerBase
+public class UserController(IConfiguration configuration, DatabaseContext context, ILogger<UserController> logger, IValidator validate) : ControllerBase
 {
     private static readonly User user = new();
     private readonly DatabaseContext _context = context;
     private readonly IConfiguration _configuration = configuration;
-    private readonly Validator _validate = validate;
+    private readonly IValidator _validate = validate;
     private readonly ILogger _logger = logger;
 
     // POST Sign-up
@@ -49,7 +49,7 @@ public class UserController(IConfiguration configuration, DatabaseContext contex
             await _context.Users.AddAsync(user);
             await _context.SaveChangesAsync();
             _logger.LogInformation("info: New user joined: {User}", user.UserName);
-            return Created();
+            return Ok();
         }
         catch
         {
@@ -66,14 +66,14 @@ public class UserController(IConfiguration configuration, DatabaseContext contex
         {
             var user = await _context.Users.Where(x => x.Email == request.Email).FirstOrDefaultAsync() ?? throw new Exception("Username is incorrect");
 
-            if (BCrypt.Net.BCrypt.Verify(request.Password, user.HashedPassword))
+            if (!BCrypt.Net.BCrypt.Verify(request.Password, user.HashedPassword))
             {
-                throw new Exception("Password is incorrect.");
+                string passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
+                throw new Exception($"Password is incorrect.");
             }
         }
-        catch (Exception e)
+        catch
         {
-            _logger.LogInformation("{Message}", e.Message);
             return BadRequest("Username or Password is incorrect");
         }
 
