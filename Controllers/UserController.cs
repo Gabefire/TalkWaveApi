@@ -62,22 +62,19 @@ public class UserController(IConfiguration configuration, DatabaseContext contex
     public async Task<IActionResult> Login(UserDto request)
     {
         // logins in with email. User name is a placeholder
-        try
+
+        var user = await _context.Users.Where(x => x.Email == request.Email).FirstOrDefaultAsync();
+        if (user == null)
         {
-            var user = await _context.Users.Where(x => x.Email == request.Email).FirstOrDefaultAsync() ?? throw new Exception("Username is incorrect");
-
-            if (!BCrypt.Net.BCrypt.Verify(request.Password, user.HashedPassword))
-            {
-                string passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
-                throw new Exception($"Password is incorrect.");
-            }
+            return BadRequest("Password or username is incorrect");
         }
-        catch
+        Console.WriteLine(user.UserId);
+
+        if (!BCrypt.Net.BCrypt.Verify(request.Password, user.HashedPassword))
         {
-            return BadRequest("Username or Password is incorrect");
-        }
-
-
+            string passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
+            return BadRequest("Password or username is incorrect");
+        };
         string token = CreateToken(user);
 
         return Ok(token);
@@ -135,13 +132,12 @@ public class UserController(IConfiguration configuration, DatabaseContext contex
     // Method to make JWT
     private string CreateToken(User user)
     {
+        Console.WriteLine(user.UserId);
 
         // Might add more claims here later
         List<Claim> claims =
         [
             new(ClaimTypes.NameIdentifier, user.UserId.ToString()),
-            new(ClaimTypes.Name, user.UserName.ToString()),
-            new(ClaimTypes.Email, user.Email.ToString())
         ];
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(

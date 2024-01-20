@@ -62,6 +62,12 @@ public class GroupChannelController(ILogger<GroupChannelController> logger, Data
         {
             return Unauthorized();
         }
+
+        if (channelDto.Type != "group" && channelDto.Type != "user")
+        {
+            return BadRequest("Not a valid channel type");
+        }
+
         // Validate JWT and get user
         var user = await _validate.ValidateJwt(HttpContext);
         if (user == null)
@@ -96,11 +102,7 @@ public class GroupChannelController(ILogger<GroupChannelController> logger, Data
         {
             return Unauthorized();
         }
-
-
-        var channelGroupList = await _context.ChannelUsersStatuses.FromSql(
-        $"SELECT Name, ChannelId, Type FROM Channel WHERE Type = 'group' Name ILIKE {name}% LIMIT 10"
-        ).ToListAsync();
+        var channelGroupList = await _context.Channels.Where(x => x.Type == "group").Where(x => x.Name.ToLower().Contains(name.ToLower())).Take(10).ToListAsync();
 
         return Ok(channelGroupList);
     }

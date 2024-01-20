@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using TalkWaveApi.Models;
 using TalkWaveApi.Services;
 using TalkWaveApi.Interface;
+using System.Runtime.InteropServices;
 
 namespace TalkWaveApi.Controllers;
 
@@ -27,11 +28,32 @@ public class ChannelController(ILogger<ChannelController> logger, DatabaseContex
         {
             return Unauthorized();
         }
-
+        // \"Channels\".\"Name\", \"Channels\".\"ChannelId\", \"Channels\".\"Type\", \"Users\".\"UserId\", cus.\"ChannelUsersStatusId\"
         //Get list of channel names/ids
-        var channelList = await _context.ChannelUsersStatuses.FromSql(
-            $"SELECT Name, ChannelId, Type FROM ChannelUserStatus FULL JOIN User ON ChannelUserStatus.UserId = User.UserId FULL JOIN Channel ON ChannelUserStatus.ChannelId = Channel.ChannelId WHERE UserId = {user.UserId}"
-        ).ToListAsync();
+
+        string sqlQuery = "SELECT c.\"Name\", c.\"ChannelId\", c2.\"UserId\", c2.\"ChannelUsersStatusId\"" +
+                          "FROM \"Channels\" AS c " +
+                          "LEFT JOIN \"ChannelUsersStatuses\" AS c2 ON c.\"ChannelId\" = c2.\"ChannelId\"";
+
+        var channelList = await _context.ChannelUsersStatuses
+            .Join(
+                _context.Channels,
+                csu => csu.ChannelId,
+                c => c.ChannelId,
+                (csu, c) => new
+                {
+                    id = c.ChannelId,
+                    name = c.Name,
+                    userId = csu.UserId
+                }
+            )
+            .Where(csu => csu.userId == user.UserId)
+            .ToListAsync();
+
+        foreach (var channel in channelList)
+        {
+            Console.WriteLine(channel);
+        }
 
         return Ok(channelList);
 
