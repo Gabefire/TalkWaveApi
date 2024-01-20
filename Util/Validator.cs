@@ -21,7 +21,6 @@ namespace TalkWaveApi.Util
                 return null;
             };
             var jwtToken = handler.ReadToken(token.Split(" ")[1]) as JwtSecurityToken;
-            Console.WriteLine(jwtToken);
             if (jwtToken == null)
             {
                 return null;

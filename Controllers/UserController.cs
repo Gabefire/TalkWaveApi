@@ -68,7 +68,6 @@ public class UserController(IConfiguration configuration, DatabaseContext contex
         {
             return BadRequest("Password or username is incorrect");
         }
-        Console.WriteLine(user.UserId);
 
         if (!BCrypt.Net.BCrypt.Verify(request.Password, user.HashedPassword))
         {
@@ -122,10 +121,8 @@ public class UserController(IConfiguration configuration, DatabaseContext contex
             return Unauthorized();
         }
 
-        var userList = await _context.ChannelUsersStatuses.FromSql(
-        $"SELECT Name, UserId FROM User WHERE Name ILIKE {name}% LIMIT 10"
-        ).ToListAsync();
 
+        var userList = await _context.Users.Where(x => x.UserName.ToLower().Contains(name.ToLower())).Take(10).ToListAsync();
         return Ok(userList);
     }
 

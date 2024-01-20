@@ -28,7 +28,7 @@ public class UserChannelController(ILogger<UserChannelController> logger, Databa
 
         if (UserId.IsNullOrEmpty())
         {
-            return BadRequest();
+            return BadRequest("UserId not present");
         }
 
         var user = await _validate.ValidateJwt(HttpContext);
@@ -40,48 +40,67 @@ public class UserChannelController(ILogger<UserChannelController> logger, Databa
         var requestedUser = await _context.Users.FindAsync(Id);
         if (requestedUser == null)
         {
-            return BadRequest();
+            return BadRequest("Not a valid userId");
         }
 
-        try
+        var channelId = await _context.ChannelUsersStatuses
+            .Join(
+                _context.Channels,
+                csu => csu.ChannelId,
+                c => c.ChannelId,
+                (csu, c) => new
+                {
+                    channelId = c.ChannelId,
+                    type = c.Type,
+                    userId = csu.UserId,
+                }
+            )
+            .Where(c => c.type == "user")
+            .Where(csu => csu.userId == requestedUser.UserId || csu.userId == user.UserId)
+            .GroupBy(x => x.channelId)
+            .Select(x => new { ChannelId = x.Key, total = x.Count() })
+            .FirstOrDefaultAsync();
+
+
+        if (channelId != null)
         {
-            string queryString = $"SELECT * FROM Channel LEFT JOIN ChannelUserStatus ON Channel.ChannelId = ChannelUserStatus.ChannelId WHERE (UserId={user.UserId} OR UserId={Id}) and Type=user";
-            var existingChannelCheck = await _context.ChannelUsersStatuses.FromSql($"SELECT COUNT(ChannelId) FROM ({queryString}) as table1 GROUP BY ChannelId HAVING COUNT(ChannelId) > 1").ToListAsync();
-            return Ok();
+
+            return Conflict(new { message = $"An existing channel between this user already exists", channelId = channelId.ChannelId });
         }
-        catch
+
+        Channel channel = new()
         {
-            Channel channel = new()
-            {
-                Type = "user",
-                UserId = user.UserId,
-            };
+            Type = "user",
+            UserId = user.UserId,
+        };
 
-            await _context.Channels.AddAsync(channel);
+        await _context.Channels.AddAsync(channel);
+        await _context.SaveChangesAsync();
 
-            ChannelUserStatus userCSU = new()
-            {
-                ChannelId = channel.ChannelId,
-                UserId = user.UserId
-            };
 
-            ChannelUserStatus requestedUserCSU = new()
-            {
-                ChannelId = channel.ChannelId,
-                UserId = requestedUser.UserId
-            };
+        ChannelUserStatus userCSU = new()
+        {
+            ChannelId = channel.ChannelId,
+            UserId = user.UserId
+        };
 
-            await _context.ChannelUsersStatuses.AddAsync(userCSU);
-            await _context.ChannelUsersStatuses.AddAsync(requestedUserCSU);
+        ChannelUserStatus requestedUserCSU = new()
+        {
+            ChannelId = channel.ChannelId,
+            UserId = requestedUser.UserId
+        };
 
-            await _context.SaveChangesAsync();
+        await _context.ChannelUsersStatuses.AddAsync(userCSU);
+        await _context.ChannelUsersStatuses.AddAsync(requestedUserCSU);
 
-            _logger.LogInformation("info: New user channel created: {UserGroup}", nameof(ChannelController.GetChannel));
+        await _context.SaveChangesAsync();
 
-            string actionName = nameof(ChannelController.GetChannel);
+        _logger.LogInformation("info: New user channel created: {UserGroup}", nameof(ChannelController.GetChannel));
 
-            return CreatedAtAction(actionName, "Channel", new { id = channel.ChannelId }, channel);
-        }
+        string actionName = nameof(ChannelController.GetChannel);
+
+        return CreatedAtAction(actionName, "Channel", new { id = channel.ChannelId }, channel);
+
     }
 
 }
