@@ -36,6 +36,7 @@ public class ChannelController(DatabaseContext context, IValidator validate) : C
                 (csu, c) => new ChannelDto
                 {
                     Name = c.Name,
+                    ChannelId = c.ChannelId,
                     IsOwner = c.UserId == user.UserId,
                     Type = c.Type,
                     ChannelPicLink = c.ChannelPicLink
@@ -75,6 +76,7 @@ public class ChannelController(DatabaseContext context, IValidator validate) : C
 
         ChannelDto channelDto = new()
         {
+            ChannelId = channel.ChannelId,
             Name = channel.Name,
             Type = channel.Type,
             IsOwner = user.UserId == channel.UserId,

@@ -31,9 +31,9 @@ public class GroupChannelController(ILogger<GroupChannelController> logger, Data
         }
 
         var channel = await _context.Channels.FindAsync(ChannelId);
-        if (channel == null)
+        if (channel == null || channel.Type == "user")
         {
-            return BadRequest("Channel not found");
+            return BadRequest();
         }
 
         var inChannel = await _context.ChannelUsersStatuses.Where(x => x.UserId == user.UserId).Where(x => x.ChannelId == ChannelId).FirstOrDefaultAsync();

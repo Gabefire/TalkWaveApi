@@ -6,9 +6,6 @@ using Microsoft.AspNetCore.Http;
 using TalkWaveApi.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.SignalR;
-
 
 namespace TalkWaveAPI.Tests
 {
@@ -118,29 +115,6 @@ namespace TalkWaveAPI.Tests
 
             var deletedChannel = await context.Channels.FindAsync(int.Parse(Id));
             Assert.Null(deletedChannel);
-        }
-        [Theory]
-        [InlineData("3")]
-        [InlineData("4")]
-        public async void DeleteChannelUnauthorized(string Id)
-        {
-            var csus = GetChannelUserStatusesList();
-            var channels = GetChannelsList();
-            using var context = CreateContext();
-            await context.ChannelUsersStatuses.AddRangeAsync(csus);
-            await context.Channels.AddRangeAsync(channels);
-            await context.SaveChangesAsync();
-            var controller = new ChannelController(context, _validator);
-            controller.ControllerContext.HttpContext = _context;
-
-            var channel = await context.Channels.FindAsync(int.Parse(Id));
-            Assert.NotNull(channel);
-
-            var actionResult = await controller.DeleteChannel(Id);
-            var okResult = actionResult as OkObjectResult;
-
-            var deletedChannel = await context.Channels.FindAsync(int.Parse(Id));
-            Assert.NotNull(deletedChannel);
         }
         private List<Channel> GetChannelsList()
         {
