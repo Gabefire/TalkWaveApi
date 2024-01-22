@@ -1,6 +1,6 @@
 using TalkWaveApi.Models;
 
-namespace TalkWaveApi.Interface
+namespace TalkWaveApi.Interfaces
 {
     public interface IValidator
     {

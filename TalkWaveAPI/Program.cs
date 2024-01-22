@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using TalkWaveApi.Services;
 using TalkWaveApi.Util;
-using TalkWaveApi.Interface;
+using TalkWaveApi.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;

@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TalkWaveApi.Models;
 using TalkWaveApi.Services;
-using TalkWaveApi.Interface;
+using TalkWaveApi.Interfaces;
 
 namespace TalkWaveApi.Controllers;
 

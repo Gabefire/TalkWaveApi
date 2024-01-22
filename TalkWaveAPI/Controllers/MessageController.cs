@@ -7,7 +7,7 @@ using System.Text;
 using System.Text.Json;
 using TalkWaveApi.Models;
 using TalkWaveApi.Services;
-using TalkWaveApi.Interface;
+using TalkWaveApi.Interfaces;
 
 namespace TalkWaveApi.Controllers;
 

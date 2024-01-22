@@ -6,7 +6,7 @@ using System.IdentityModel.Tokens.Jwt;
 using TalkWaveApi.Models;
 using TalkWaveApi.Services;
 using Microsoft.EntityFrameworkCore;
-using TalkWaveApi.Interface;
+using TalkWaveApi.Interfaces;
 
 namespace TalkWaveApi.Controllers;
 

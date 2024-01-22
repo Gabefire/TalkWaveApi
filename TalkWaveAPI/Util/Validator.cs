@@ -1,7 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using TalkWaveApi.Models;
 using TalkWaveApi.Services;
-using TalkWaveApi.Interface;
+using TalkWaveApi.Interfaces;
 using System.Security.Claims;
 
 namespace TalkWaveApi.Util

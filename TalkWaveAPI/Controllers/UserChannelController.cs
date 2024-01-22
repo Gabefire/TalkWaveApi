@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using TalkWaveApi.Models;
 using TalkWaveApi.Services;
-using TalkWaveApi.Interface;
+using TalkWaveApi.Interfaces;
 
 namespace TalkWaveApi.Controllers;
 

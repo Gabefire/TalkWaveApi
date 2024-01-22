@@ -2,20 +2,18 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TalkWaveApi.Models;
 using TalkWaveApi.Services;
-using TalkWaveApi.Interface;
-using System.Runtime.InteropServices;
+using TalkWaveApi.Interfaces;
 
 namespace TalkWaveApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class ChannelController(ILogger<ChannelController> logger, DatabaseContext context, IValidator validate) : ControllerBase
+public class ChannelController(DatabaseContext context, IValidator validate) : ControllerBase
 {
     private readonly DatabaseContext _context = context;
 
     private readonly IValidator _validate = validate;
 
-    private readonly ILogger _logger = logger;
 
 
     // GET all message board user is joined
@@ -28,12 +26,6 @@ public class ChannelController(ILogger<ChannelController> logger, DatabaseContex
         {
             return Unauthorized();
         }
-        // \"Channels\".\"Name\", \"Channels\".\"ChannelId\", \"Channels\".\"Type\", \"Users\".\"UserId\", cus.\"ChannelUsersStatusId\"
-        //Get list of channel names/ids
-
-        string sqlQuery = "SELECT c.\"Name\", c.\"ChannelId\", c2.\"UserId\", c2.\"ChannelUsersStatusId\"" +
-                          "FROM \"Channels\" AS c " +
-                          "LEFT JOIN \"ChannelUsersStatuses\" AS c2 ON c.\"ChannelId\" = c2.\"ChannelId\"";
 
         var channelList = await _context.ChannelUsersStatuses
             .Join(
