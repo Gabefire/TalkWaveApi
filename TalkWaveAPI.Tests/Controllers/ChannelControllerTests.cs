@@ -7,6 +7,7 @@ using TalkWaveApi.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.SignalR;
 
 
 namespace TalkWaveAPI.Tests
@@ -59,7 +60,6 @@ namespace TalkWaveAPI.Tests
             var actionResult = await controller.GetChannels();
             var okResult = actionResult as OkObjectResult;
             var channelList = okResult?.Value as List<ChannelDto>;
-
             //asset
             Assert.IsType<List<ChannelDto>>(channelList);
             Assert.Equal(2, channelList.Count());
@@ -67,6 +67,81 @@ namespace TalkWaveAPI.Tests
             Assert.Contains(channelList, channel => channel.Name == "test3");
         }
 
+        public static IEnumerable<object[]> Channels()
+        {
+            {
+                yield return new object[] { "2", new ChannelDto { Name = "test2", Type = "group", IsOwner = true } };
+                yield return new object[] { "1", new ChannelDto { Name = "test1", Type = "group", IsOwner = true } };
+            }
+        }
+
+        [Theory]
+        [MemberData(nameof(Channels))]
+        public async void GetChannel(string Id, ChannelDto expectedChannel)
+        {
+            //arrange
+            var csus = GetChannelUserStatusesList();
+            var channels = GetChannelsList();
+            using var context = CreateContext();
+            await context.ChannelUsersStatuses.AddRangeAsync(csus);
+            await context.Channels.AddRangeAsync(channels);
+            await context.SaveChangesAsync();
+            var controller = new ChannelController(context, _validator);
+            controller.ControllerContext.HttpContext = _context;
+            //act
+            var actionResult = await controller.GetChannel(Id);
+            var okResult = actionResult as OkObjectResult;
+            var channel = okResult?.Value as ChannelDto;
+            //asset
+            Assert.IsType<ChannelDto>(channel);
+            Assert.Equal(channel.Name, expectedChannel.Name);
+        }
+        [Theory]
+        [InlineData("1")]
+        [InlineData("2")]
+        public async void DeleteChannel(string Id)
+        {
+            var csus = GetChannelUserStatusesList();
+            var channels = GetChannelsList();
+            using var context = CreateContext();
+            await context.ChannelUsersStatuses.AddRangeAsync(csus);
+            await context.Channels.AddRangeAsync(channels);
+            await context.SaveChangesAsync();
+            var controller = new ChannelController(context, _validator);
+            controller.ControllerContext.HttpContext = _context;
+
+            var channel = await context.Channels.FindAsync(int.Parse(Id));
+            Assert.NotNull(channel);
+
+            var actionResult = await controller.DeleteChannel(Id);
+            var okResult = actionResult as OkObjectResult;
+
+            var deletedChannel = await context.Channels.FindAsync(int.Parse(Id));
+            Assert.Null(deletedChannel);
+        }
+        [Theory]
+        [InlineData("3")]
+        [InlineData("4")]
+        public async void DeleteChannelUnauthorized(string Id)
+        {
+            var csus = GetChannelUserStatusesList();
+            var channels = GetChannelsList();
+            using var context = CreateContext();
+            await context.ChannelUsersStatuses.AddRangeAsync(csus);
+            await context.Channels.AddRangeAsync(channels);
+            await context.SaveChangesAsync();
+            var controller = new ChannelController(context, _validator);
+            controller.ControllerContext.HttpContext = _context;
+
+            var channel = await context.Channels.FindAsync(int.Parse(Id));
+            Assert.NotNull(channel);
+
+            var actionResult = await controller.DeleteChannel(Id);
+            var okResult = actionResult as OkObjectResult;
+
+            var deletedChannel = await context.Channels.FindAsync(int.Parse(Id));
+            Assert.NotNull(deletedChannel);
+        }
         private List<Channel> GetChannelsList()
         {
             List<Channel> channels = new List<Channel>
