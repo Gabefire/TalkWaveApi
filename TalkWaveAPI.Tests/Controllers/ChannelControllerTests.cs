@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using TalkWaveApi.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Components;
 
 
 namespace TalkWaveAPI.Tests
@@ -29,8 +30,7 @@ namespace TalkWaveAPI.Tests
             dbContext.Database.EnsureCreated();
 
 
-            var contextMock = new Mock<HttpContext>();
-            _context = contextMock.Object;
+            _context = new DefaultHttpContext();
 
             var validateMock = new Mock<IValidator>();
 
@@ -44,23 +44,27 @@ namespace TalkWaveAPI.Tests
         }
 
         [Fact]
-        public void GetChannels()
+        public async void GetChannels()
         {
             //arrange
             var csus = GetChannelUserStatusesList();
             var channels = GetChannelsList();
             using var context = CreateContext();
-            context.ChannelUsersStatuses.AddRange(csus);
-            context.Channels.AddRange(channels);
-            context.SaveChanges();
+            await context.ChannelUsersStatuses.AddRangeAsync(csus);
+            await context.Channels.AddRangeAsync(channels);
+            await context.SaveChangesAsync();
             var controller = new ChannelController(context, _validator);
+            controller.ControllerContext.HttpContext = _context;
             //act
-            var channelList = (controller.GetChannels().Result as OkObjectResult)?.Value as List<Channel>;
-            //asset
-            Assert.NotNull(channelList);
-            Assert.Equal(2, channelList.Count());
-            Assert.Equal(1, channelList.First().ChannelId);
+            var actionResult = await controller.GetChannels();
+            var okResult = actionResult as OkObjectResult;
+            var channelList = okResult?.Value as List<ChannelDto>;
 
+            //asset
+            Assert.IsType<List<ChannelDto>>(channelList);
+            Assert.Equal(2, channelList.Count());
+            Assert.Contains(channelList, channel => channel.Name == "test1");
+            Assert.Contains(channelList, channel => channel.Name == "test3");
         }
 
         private List<Channel> GetChannelsList()

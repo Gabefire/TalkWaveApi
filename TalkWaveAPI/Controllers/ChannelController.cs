@@ -28,24 +28,20 @@ public class ChannelController(DatabaseContext context, IValidator validate) : C
         }
 
         var channelList = await _context.ChannelUsersStatuses
+            .Where(x => x.UserId == user.UserId)
             .Join(
                 _context.Channels,
                 csu => csu.ChannelId,
                 c => c.ChannelId,
-                (csu, c) => new
+                (csu, c) => new ChannelDto
                 {
-                    id = c.ChannelId,
-                    name = c.Name,
-                    userId = csu.UserId
+                    Name = c.Name,
+                    IsOwner = c.UserId == user.UserId,
+                    Type = c.Type,
+                    ChannelPicLink = c.ChannelPicLink
                 }
             )
-            .Where(csu => csu.userId == user.UserId)
             .ToListAsync();
-
-        foreach (var channel in channelList)
-        {
-            Console.WriteLine(channel);
-        }
 
         return Ok(channelList);
 

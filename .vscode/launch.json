@@ -1,0 +1,14 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        
+        
+        {
+            "name": "C#: TalkWaveAPI.Tests",
+            "type": "dotnet",
+            "request": "launch",
+            "projectPath": "${workspaceFolder}/TalkWaveAPI.Tests/TalkWaveAPI.Tests.csproj",
+            "launchConfigurationId": "TargetFramework=;TalkWaveAPI.Tests",
+        }
+    ]
+}
