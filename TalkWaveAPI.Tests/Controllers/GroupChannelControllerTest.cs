@@ -8,9 +8,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 
-namespace TalkWaveAPI.Tests
+namespace TalkWaveApi.Tests
 {
-    public class GroupChannelControllerTests
+    [Collection("TalkWaveApiTestCollection")]
+    public class GroupChannelControllerTests : IDisposable
     {
         private readonly DbContextOptions<DatabaseContext> _contextOptions;
 
@@ -28,6 +29,8 @@ namespace TalkWaveAPI.Tests
             dbContext.Database.EnsureDeleted();
             dbContext.Database.EnsureCreated();
 
+            SetUp(dbContext);
+
             _context = new DefaultHttpContext();
 
             var validateMock = new Mock<IValidator>();
@@ -39,6 +42,15 @@ namespace TalkWaveAPI.Tests
             }));
 
             _validator = validateMock.Object;
+        }
+
+        public void Dispose()
+        {
+            var dbContext = new DatabaseContext(_contextOptions);
+            dbContext.ChangeTracker
+            .Entries()
+            .ToList()
+            .ForEach(e => e.State = EntityState.Detached);
         }
 
 
@@ -53,7 +65,7 @@ namespace TalkWaveAPI.Tests
             .AddConsole());
             var logger = loggerFactory.
             CreateLogger<GroupChannelController>();
-            using DatabaseContext dbContext = await SetUp();
+            using DatabaseContext dbContext = CreateContext();
             var controller = new GroupChannelController(logger, dbContext, _validator);
             controller.ControllerContext.HttpContext = _context;
 
@@ -82,7 +94,7 @@ namespace TalkWaveAPI.Tests
             .AddConsole());
             var logger = loggerFactory.
             CreateLogger<GroupChannelController>();
-            using DatabaseContext dbContext = await SetUp();
+            using DatabaseContext dbContext = CreateContext();
             var controller = new GroupChannelController(logger, dbContext, _validator);
             controller.ControllerContext.HttpContext = _context;
             //act
@@ -147,15 +159,15 @@ namespace TalkWaveAPI.Tests
         }
         DatabaseContext CreateContext() => new(_contextOptions);
 
-        private async Task<DatabaseContext> SetUp()
+        private void SetUp(DatabaseContext context)
         {
             var csus = GetChannelUserStatusesList();
             var channels = GetChannelsList();
-            var context = CreateContext();
-            await context.ChannelUsersStatuses.AddRangeAsync(csus);
-            await context.Channels.AddRangeAsync(channels);
-            await context.SaveChangesAsync();
-            return context;
+
+            context.ChannelUsersStatuses.AddRange(csus);
+            context.Channels.AddRange(channels);
+            context.SaveChanges();
+
         }
     }
 }

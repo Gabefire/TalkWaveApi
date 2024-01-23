@@ -21,7 +21,7 @@ public class MessageController(DatabaseContext context, ILogger<MessageControlle
     private readonly IValidator _validate = validate;
 
     // websocket connections
-    // Maybe add a dictionary with user for websocket to validate session
+    // Maybe add a dictionary with user for websocket to validate session already exists or not
     public static readonly ConcurrentDictionary<string, List<WebSocket>> connections = new();
 
     // Websocket messages

@@ -27,7 +27,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\TalkWaveAPI\TalkWaveApi.csproj" />
+    <ProjectReference Include="..\TalkWaveApi\TalkWaveApi.csproj" />
   </ItemGroup>
 
 </Project>

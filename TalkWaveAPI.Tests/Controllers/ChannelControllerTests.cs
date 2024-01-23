@@ -7,9 +7,10 @@ using TalkWaveApi.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
 
-namespace TalkWaveAPI.Tests
+namespace TalkWaveApi.Tests
 {
-    public class ChannelControllerTests
+    [Collection("TalkWaveApiTestCollection")]
+    public class ChannelControllerTests : IDisposable
     {
         private readonly DbContextOptions<DatabaseContext> _contextOptions;
 
@@ -27,6 +28,7 @@ namespace TalkWaveAPI.Tests
             dbContext.Database.EnsureDeleted();
             dbContext.Database.EnsureCreated();
 
+            SetUp(dbContext);
 
             _context = new DefaultHttpContext();
 
@@ -41,17 +43,21 @@ namespace TalkWaveAPI.Tests
             _validator = validateMock.Object;
         }
 
+        public void Dispose()
+        {
+            var dbContext = new DatabaseContext(_contextOptions);
+            dbContext.ChangeTracker
+            .Entries()
+            .ToList()
+            .ForEach(e => e.State = EntityState.Detached);
+        }
+
         [Fact]
         public async void GetChannels()
         {
             //arrange
-            var csus = GetChannelUserStatusesList();
-            var channels = GetChannelsList();
-            using var context = CreateContext();
-            await context.ChannelUsersStatuses.AddRangeAsync(csus);
-            await context.Channels.AddRangeAsync(channels);
-            await context.SaveChangesAsync();
-            var controller = new ChannelController(context, _validator);
+            using DatabaseContext dbContext = CreateContext();
+            var controller = new ChannelController(dbContext, _validator);
             controller.ControllerContext.HttpContext = _context;
             //act
             var actionResult = await controller.GetChannels();
@@ -77,13 +83,8 @@ namespace TalkWaveAPI.Tests
         public async void GetChannel(string Id, ChannelDto expectedChannel)
         {
             //arrange
-            var csus = GetChannelUserStatusesList();
-            var channels = GetChannelsList();
-            using var context = CreateContext();
-            await context.ChannelUsersStatuses.AddRangeAsync(csus);
-            await context.Channels.AddRangeAsync(channels);
-            await context.SaveChangesAsync();
-            var controller = new ChannelController(context, _validator);
+            using DatabaseContext dbContext = CreateContext();
+            var controller = new ChannelController(dbContext, _validator);
             controller.ControllerContext.HttpContext = _context;
             //act
             var actionResult = await controller.GetChannel(Id);
@@ -98,22 +99,17 @@ namespace TalkWaveAPI.Tests
         [InlineData("2")]
         public async void DeleteChannel(string Id)
         {
-            var csus = GetChannelUserStatusesList();
-            var channels = GetChannelsList();
-            using var context = CreateContext();
-            await context.ChannelUsersStatuses.AddRangeAsync(csus);
-            await context.Channels.AddRangeAsync(channels);
-            await context.SaveChangesAsync();
-            var controller = new ChannelController(context, _validator);
+            using DatabaseContext dbContext = CreateContext();
+            var controller = new ChannelController(dbContext, _validator);
             controller.ControllerContext.HttpContext = _context;
 
-            var channel = await context.Channels.FindAsync(int.Parse(Id));
+            var channel = await dbContext.Channels.FindAsync(int.Parse(Id));
             Assert.NotNull(channel);
 
             var actionResult = await controller.DeleteChannel(Id);
             var okResult = actionResult as OkObjectResult;
 
-            var deletedChannel = await context.Channels.FindAsync(int.Parse(Id));
+            var deletedChannel = await dbContext.Channels.FindAsync(int.Parse(Id));
             Assert.Null(deletedChannel);
         }
         private List<Channel> GetChannelsList()
@@ -173,6 +169,16 @@ namespace TalkWaveAPI.Tests
             };
             return csu;
         }
-        DatabaseContext CreateContext() => new DatabaseContext(_contextOptions);
+        DatabaseContext CreateContext() => new(_contextOptions);
+
+        private void SetUp(DatabaseContext context)
+        {
+            var csus = GetChannelUserStatusesList();
+            var channels = GetChannelsList();
+
+            context.ChannelUsersStatuses.AddRange(csus);
+            context.Channels.AddRange(channels);
+            context.SaveChanges();
+        }
     };
 }
