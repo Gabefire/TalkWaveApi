@@ -59,6 +59,7 @@ public class UserChannelController(ILogger<UserChannelController> logger, Databa
             .Where(csu => csu.userId == requestedUser.UserId || csu.userId == user.UserId)
             .GroupBy(x => x.channelId)
             .Select(x => new { ChannelId = x.Key, total = x.Count() })
+            .Where(x => x.total > 1)
             .FirstOrDefaultAsync();
 
 
@@ -95,7 +96,7 @@ public class UserChannelController(ILogger<UserChannelController> logger, Databa
 
         await _context.SaveChangesAsync();
 
-        _logger.LogInformation("info: New user channel created: {UserGroup}", nameof(ChannelController.GetChannel));
+        _logger.LogInformation("info: New user channel created: {UserGroup}", $"{user.UserName} and {requestedUser.UserName}");
 
         string actionName = nameof(ChannelController.GetChannel);
 

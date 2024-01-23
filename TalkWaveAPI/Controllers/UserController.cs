@@ -101,6 +101,8 @@ public class UserController(IConfiguration configuration, DatabaseContext contex
             user.HashedPassword = passwordHash;
         }
 
+        _context.Update(user);
+
         await _context.SaveChangesAsync();
 
         return Ok();
@@ -125,8 +127,6 @@ public class UserController(IConfiguration configuration, DatabaseContext contex
     // Method to make JWT
     private string CreateToken(User user)
     {
-        Console.WriteLine(user.UserId);
-
         // Might add more claims here later
         List<Claim> claims =
         [

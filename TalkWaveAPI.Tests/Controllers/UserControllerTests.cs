@@ -7,11 +7,12 @@ using TalkWaveApi.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
 
 namespace TalkWaveApi.Tests
 {
     [Collection("TalkWaveApiTestCollection")]
-    public class UserChannelControllerTests : IDisposable
+    public class UserControllerTests : IDisposable
     {
 
         private readonly DbContextOptions<DatabaseContext> _contextOptions;
@@ -19,8 +20,9 @@ namespace TalkWaveApi.Tests
         private readonly IValidator _validator;
 
         private readonly HttpContext _context;
+        private readonly IConfigurationRoot _configuration;
 
-        public UserChannelControllerTests()
+        public UserControllerTests()
         {
             _contextOptions = new DbContextOptionsBuilder<DatabaseContext>().UseInMemoryDatabase(databaseName: "TalkWave")
             .Options;
@@ -43,6 +45,11 @@ namespace TalkWaveApi.Tests
             }));
 
             _validator = validateMock.Object;
+
+            var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection()
+            .Build();
+            _configuration = configuration;
         }
 
         public void Dispose()
@@ -54,61 +61,105 @@ namespace TalkWaveApi.Tests
             .ForEach(e => e.State = EntityState.Detached);
         }
 
-
-        [Theory]
-        [InlineData("2")]
-        private async void CreateChannel(string UserId)
+        public static IEnumerable<object[]> Users()
         {
-            //arrange
-            using var loggerFactory = LoggerFactory.Create(loggingBuilder => loggingBuilder
-            .SetMinimumLevel(LogLevel.Trace)
-            .AddConsole());
-            var logger = loggerFactory.
-            CreateLogger<UserChannelController>();
-
-            using DatabaseContext dbContext = CreateContext();
-
-            var controller = new UserChannelController(logger, dbContext, _validator);
-            controller.ControllerContext.HttpContext = _context;
-
-            //act
-            var actionResult = await controller.CreateChannel(UserId);
-
-            var userCSU = await dbContext.ChannelUsersStatuses.Where(x => x.UserId == 1).SingleOrDefaultAsync();
-
-            var requestedCSU = await dbContext.ChannelUsersStatuses.Where(x => x.UserId == 2).SingleOrDefaultAsync();
-
-            var channel = await dbContext.Channels.Where(x => x.ChannelId == 5).SingleOrDefaultAsync();
-
-            //asset
-            Assert.NotNull(userCSU);
-            Assert.NotNull(requestedCSU);
-            Assert.NotNull(channel);
+            {
+                yield return new object[] { new UserDto { UserName = "test1", Password = "123", Email = "test@test.com" } };
+                yield return new object[] { new UserDto { UserName = "test2", Password = "123", Email = "test2@test.com" } };
+            }
         }
 
         [Theory]
-        [InlineData("2")]
-        private async void CreateChannelConflict(string UserId)
+        [MemberData(nameof(Users))]
+        private async void Register(UserDto request)
         {
             //arrange
             using var loggerFactory = LoggerFactory.Create(loggingBuilder => loggingBuilder
             .SetMinimumLevel(LogLevel.Trace)
             .AddConsole());
             var logger = loggerFactory.
-            CreateLogger<UserChannelController>();
+            CreateLogger<UserController>();
 
             using DatabaseContext dbContext = CreateContext();
 
-            var controller = new UserChannelController(logger, dbContext, _validator);
+            var controller = new UserController(_configuration, dbContext, logger, _validator);
             controller.ControllerContext.HttpContext = _context;
 
             //act
-            var okResult = await controller.CreateChannel(UserId);
-            var conflictResult = await controller.CreateChannel(UserId);
+            var actionResult = await controller.Register(request);
+
+            var user = await dbContext.Users.Where(x => x.Email == request.Email).SingleOrDefaultAsync();
 
             //asset
-            Assert.IsType<CreatedAtActionResult>(okResult);
-            Assert.IsType<ConflictObjectResult>(conflictResult);
+            Assert.NotNull(user);
+        }
+
+        [Theory]
+        [MemberData(nameof(Users))]
+        private async void Login(UserDto request)
+        {
+            //arrange
+            using var loggerFactory = LoggerFactory.Create(loggingBuilder => loggingBuilder
+            .SetMinimumLevel(LogLevel.Trace)
+            .AddConsole());
+            var logger = loggerFactory.
+            CreateLogger<UserController>();
+
+            using DatabaseContext dbContext = CreateContext();
+
+            var inMemorySetting = new Dictionary<string, string>
+            {
+                {"JwtSettings:Key" , "this is my custom Secret key for authentication"},
+            };
+
+            var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(inMemorySetting!)
+            .Build();
+
+            var controller = new UserController(configuration, dbContext, logger, _validator);
+            controller.ControllerContext.HttpContext = _context;
+
+            //act
+            var actionResult = await controller.Register(request);
+
+            var user = await dbContext.Users.Where(x => x.Email == request.Email).SingleOrDefaultAsync();
+
+            var okResult = await controller.Login(request);
+
+            //asset
+            Assert.IsType<OkObjectResult>(okResult);
+        }
+        public static IEnumerable<object[]> EditUserEnum()
+        {
+            {
+                yield return new object[] { new UserDto { UserName = "changed", Password = "123", Email = "test3@test.com" } };
+            }
+        }
+
+        [Theory]
+        [MemberData(nameof(EditUserEnum))]
+        private async void EditUser(UserDto request)
+        {
+            //arrange
+            using var loggerFactory = LoggerFactory.Create(loggingBuilder => loggingBuilder
+            .SetMinimumLevel(LogLevel.Trace)
+            .AddConsole());
+            var logger = loggerFactory.
+            CreateLogger<UserController>();
+
+            using DatabaseContext dbContext = CreateContext();
+
+            var controller = new UserController(_configuration, dbContext, logger, _validator);
+            controller.ControllerContext.HttpContext = _context;
+
+            //act
+            var actionResult = await controller.EditUser(request);
+
+            var user = await dbContext.Users.FindAsync(1);
+
+            //asset
+            Assert.NotNull(user);
+            Assert.Equal(user.Email, request.Email);
         }
 
         private List<Channel> GetChannelsList()
