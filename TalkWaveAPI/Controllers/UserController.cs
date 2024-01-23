@@ -33,7 +33,7 @@ public class UserController(IConfiguration configuration, DatabaseContext contex
         var emailTest = await _context.Users.FirstOrDefaultAsync(x => x.Email == request.Email);
         if (emailTest != null)
         {
-            return Conflict();
+            return Conflict("Email already taken");
         }
 
         string passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
@@ -44,17 +44,13 @@ public class UserController(IConfiguration configuration, DatabaseContext contex
         user.Email = request.Email;
 
 
-        try
-        {
-            await _context.Users.AddAsync(user);
-            await _context.SaveChangesAsync();
-            _logger.LogInformation("info: New user joined: {User}", user.UserName);
-            return Ok();
-        }
-        catch
-        {
-            return BadRequest("Something went wrong");
-        }
+
+        await _context.Users.AddAsync(user);
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("info: New user joined: {User}", user.UserName);
+
+        return Ok();
     }
 
     //POST login receive token

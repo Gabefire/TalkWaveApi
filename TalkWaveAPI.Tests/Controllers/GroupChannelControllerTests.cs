@@ -13,6 +13,7 @@ namespace TalkWaveApi.Tests
     [Collection("TalkWaveApiTestCollection")]
     public class GroupChannelControllerTests : IDisposable
     {
+
         private readonly DbContextOptions<DatabaseContext> _contextOptions;
 
         private readonly IValidator _validator;
@@ -105,56 +106,78 @@ namespace TalkWaveApi.Tests
             Assert.IsType<Channel>(channel);
             Assert.Equal(channel.Name, channelDto.Name);
         }
+        [Theory]
+        [InlineData("1")]
+        [InlineData("3")]
+        public async void LeaveChannel(string Id)
+        {
+            //arrange
+            using var loggerFactory = LoggerFactory.Create(loggingBuilder => loggingBuilder
+            .SetMinimumLevel(LogLevel.Trace)
+            .AddConsole());
+            var logger = loggerFactory.
+            CreateLogger<GroupChannelController>();
+            using DatabaseContext dbContext = CreateContext();
+            var controller = new GroupChannelController(logger, dbContext, _validator);
+            controller.ControllerContext.HttpContext = _context;
+            //act
+            var actionResult = await controller.LeaveChannel(Id);
+            var okResult = actionResult as CreatedAtActionResult;
+            var csu = await dbContext.ChannelUsersStatuses.Where(x => x.UserId == 1).Where(x => x.ChannelId == int.Parse(Id)).SingleOrDefaultAsync();
+            //asset
+            Assert.Null(csu);
+        }
+
         private List<Channel> GetChannelsList()
         {
             List<Channel> channels = new List<Channel>
-            {
-                new Channel
                 {
-                    ChannelId = 1,
-                    Type = "group",
-                    UserId = 1,
-                    Name = "test1"
-                },
-                new Channel
-                {
-                    ChannelId = 2,
-                    Type = "group",
-                    UserId = 1,
-                    Name = "test2"
-                },
-                new Channel
-                {
-                    ChannelId = 3,
-                    Type = "user",
-                    UserId = 2,
-                    Name = "test3"
-                },
-                new Channel
-                {
-                    ChannelId = 4,
-                    Type = "group",
-                    UserId = 2,
-                    Name = "test4"
-                },
-            };
+                    new Channel
+                    {
+                        ChannelId = 1,
+                        Type = "group",
+                        UserId = 1,
+                        Name = "test1"
+                    },
+                    new Channel
+                    {
+                        ChannelId = 2,
+                        Type = "group",
+                        UserId = 1,
+                        Name = "test2"
+                    },
+                    new Channel
+                    {
+                        ChannelId = 3,
+                        Type = "user",
+                        UserId = 2,
+                        Name = "test3"
+                    },
+                    new Channel
+                    {
+                        ChannelId = 4,
+                        Type = "group",
+                        UserId = 2,
+                        Name = "test4"
+                    },
+                };
             return channels;
         }
         private List<ChannelUserStatus> GetChannelUserStatusesList()
         {
             List<ChannelUserStatus> csu = new List<ChannelUserStatus>
-            {
-                new ChannelUserStatus
                 {
-                    UserId = 2,
-                    ChannelId = 2,
-                },
-                new ChannelUserStatus
-                {
-                    UserId = 1,
-                    ChannelId = 3
-                }
-            };
+                    new ChannelUserStatus
+                    {
+                        UserId = 2,
+                        ChannelId = 2,
+                    },
+                    new ChannelUserStatus
+                    {
+                        UserId = 1,
+                        ChannelId = 3
+                    }
+                };
             return csu;
         }
         DatabaseContext CreateContext() => new(_contextOptions);
@@ -167,7 +190,6 @@ namespace TalkWaveApi.Tests
             context.ChannelUsersStatuses.AddRange(csus);
             context.Channels.AddRange(channels);
             context.SaveChanges();
-
         }
     }
 }
