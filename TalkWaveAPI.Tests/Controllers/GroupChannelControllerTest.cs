@@ -65,6 +65,34 @@ namespace TalkWaveAPI.Tests
             //assert
             Assert.NotNull(channel);
         }
+        public static IEnumerable<object[]> Channels()
+        {
+            {
+                yield return new object[] { new ChannelDto { Name = "test5", Type = "group", IsOwner = true } };
+                yield return new object[] { new ChannelDto { Name = "test6", Type = "group", IsOwner = true } };
+            }
+        }
+        [Theory]
+        [MemberData(nameof(Channels))]
+        public async void CreateChannel(ChannelDto channelDto)
+        {
+            //arrange
+            using var loggerFactory = LoggerFactory.Create(loggingBuilder => loggingBuilder
+            .SetMinimumLevel(LogLevel.Trace)
+            .AddConsole());
+            var logger = loggerFactory.
+            CreateLogger<GroupChannelController>();
+            using DatabaseContext dbContext = await SetUp();
+            var controller = new GroupChannelController(logger, dbContext, _validator);
+            controller.ControllerContext.HttpContext = _context;
+            //act
+            var actionResult = await controller.CreateChannel(channelDto);
+            var okResult = actionResult as CreatedAtActionResult;
+            var channel = await dbContext.Channels.Where(x => x.Name == channelDto.Name).SingleOrDefaultAsync();
+            //asset
+            Assert.IsType<Channel>(channel);
+            Assert.Equal(channel.Name, channelDto.Name);
+        }
         private List<Channel> GetChannelsList()
         {
             List<Channel> channels = new List<Channel>
