@@ -72,7 +72,7 @@ public class UserController(IConfiguration configuration, DatabaseContext contex
         };
         string token = CreateToken(user);
 
-        return Ok(token);
+        return Ok(new { token, userName = user.UserName });
     }
 
     // PUT edit user
@@ -120,7 +120,7 @@ public class UserController(IConfiguration configuration, DatabaseContext contex
         }
 
 
-        var userList = await _context.Users.Where(x => x.UserName.ToLower().Contains(name.ToLower())).Take(10).ToListAsync();
+        var userList = await _context.Users.Where(x => x.UserId != user.UserId).Where(x => x.UserName.ToLower().Contains(name.ToLower())).Select(x => new UserSearchDto { UserId = x.UserId, UserName = x.UserName, ProfilePicLink = x.ProfilePicLink }).Take(5).ToListAsync();
         return Ok(userList);
     }
 

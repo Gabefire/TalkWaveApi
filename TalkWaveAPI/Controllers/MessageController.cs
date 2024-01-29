@@ -8,34 +8,55 @@ using System.Text.Json;
 using TalkWaveApi.Models;
 using TalkWaveApi.Services;
 using TalkWaveApi.Interfaces;
+using System.IdentityModel.Tokens.Jwt;
 
 namespace TalkWaveApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class MessageController(DatabaseContext context, ILogger<MessageController> logger, IValidator validate) : ControllerBase
+public class MessageController(DatabaseContext context, ILogger<MessageController> logger, IValidator validator) : ControllerBase
 {
     private readonly DatabaseContext _context = context;
     private readonly ILogger _logger = logger;
+    private readonly IValidator _validate = validator;
 
-    private readonly IValidator _validate = validate;
 
     // websocket connections
     // Maybe add a dictionary with user for websocket to validate session already exists or not
     public static readonly ConcurrentDictionary<string, List<WebSocket>> connections = new();
 
     // Websocket messages
-    [HttpGet("{ChannelType}/{Id}"), Authorize]
-    public async Task<IActionResult> GetWs(string ChannelType, string Id)
+    [HttpGet("{ChannelType}/{Id}")]
+    public async Task<IActionResult> GetWs([FromQuery(Name = "authorization")] string token, string ChannelType, string Id)
     {
-        // Validate group size
         connections.TryGetValue(Id, out List<WebSocket>? connectionList);
         if (ChannelType == "user" && connectionList != null && connectionList.Count >= 2)
+        {
+            return BadRequest("User channel");
+        }
+
+        var handler = new JwtSecurityTokenHandler();
+
+        if (!handler.CanReadToken(token))
+        {
+            return BadRequest();
+        };
+        var jwtToken = handler.ReadToken(token) as JwtSecurityToken;
+        if (jwtToken == null)
         {
             return BadRequest();
         }
 
-        var user = await _validate.ValidateJwt(HttpContext);
+        string userId = jwtToken.Claims.First(claim => claim.Type == "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier").Value;
+
+        if (!int.TryParse(userId, out int userParsedId))
+        {
+            return BadRequest();
+        }
+
+        //Validate and get user
+        var user = await _context.Users.FindAsync(userParsedId);
+
         if (user == null)
         {
             return Unauthorized();
@@ -44,7 +65,7 @@ public class MessageController(DatabaseContext context, ILogger<MessageControlle
         //Validate Id can be casted as int
         if (!int.TryParse(Id, out int ChannelId))
         {
-            return BadRequest();
+            return BadRequest("Not a valid id");
         }
 
         //Validate channel exists
@@ -96,13 +117,6 @@ public class MessageController(DatabaseContext context, ILogger<MessageControlle
         _logger.LogInformation("info: {User} connected to {Channel}", userName, channelName);
         _logger.LogInformation("info: Connections in Channel: {Count}", connections[ChannelId.ToString()].Count);
 
-        var jsonMessages = JsonSerializer.SerializeToUtf8Bytes(GetMessageDtos(ChannelId, user.UserId));
-        await webSocket.SendAsync(
-            jsonMessages,
-            WebSocketMessageType.Binary,
-            true,
-            CancellationToken.None
-            );
 
         while (!receiveResult.CloseStatus.HasValue)
         {
@@ -112,6 +126,8 @@ public class MessageController(DatabaseContext context, ILogger<MessageControlle
             {
                 continue;
             }
+
+
 
             DateTime currentDate = DateTime.UtcNow;
 
@@ -124,7 +140,7 @@ public class MessageController(DatabaseContext context, ILogger<MessageControlle
             };
 
             await _context.Messages.AddAsync(message);
-
+            await _context.SaveChangesAsync();
 
             MessageDto messageDto = new()
             {
@@ -134,7 +150,6 @@ public class MessageController(DatabaseContext context, ILogger<MessageControlle
             };
             foreach (var item in connections[ChannelId.ToString()])
             {
-
                 if (item == webSocket)
                 {
                     messageDto.IsOwner = true;
@@ -169,18 +184,30 @@ public class MessageController(DatabaseContext context, ILogger<MessageControlle
 
     }
 
-
-    private async Task<List<MessageDto>> GetMessageDtos(int ChannelId, int userId)
+    [HttpGet("{Id}")]
+    public async Task<ActionResult> GetMessages(string Id)
     {
+        if (!int.TryParse(Id, out int ChannelId))
+        {
+            return BadRequest();
+        }
+        var user = await _validate.ValidateJwt(HttpContext);
+        if (user == null)
+        {
+            return Unauthorized();
+        }
+
         var messages = await _context.Messages.Where(x => x.ChannelId == ChannelId).ToListAsync();
 
         List<MessageDto> messageDtos = [];
+
 
         foreach (Message message in messages)
         {
             var userName = await _context.Users.Where(u => u.UserId == message.UserId).Select(u => u.UserName).SingleOrDefaultAsync();
 
             string author = "Anonymous";
+
             if (userName != null)
             {
                 author = userName;
@@ -189,12 +216,14 @@ public class MessageController(DatabaseContext context, ILogger<MessageControlle
             MessageDto messageDto = new()
             {
                 Author = author,
-                IsOwner = message.UserId == userId,
+                IsOwner = message.UserId == user.UserId,
                 Content = message.Content,
                 CreatedAt = message.CreatedAt
             };
+
+            messageDtos.Add(messageDto);
         }
 
-        return messageDtos;
+        return Ok(messageDtos);
     }
 }

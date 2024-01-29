@@ -2,7 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using TalkWaveApi.Models;
 using TalkWaveApi.Services;
 using TalkWaveApi.Interfaces;
-using System.Security.Claims;
+using Microsoft.IdentityModel.Tokens;
 
 namespace TalkWaveApi.Util
 {
@@ -16,16 +16,21 @@ namespace TalkWaveApi.Util
             var handler = new JwtSecurityTokenHandler();
 
             //Check if JWT can be read
+            if (token.IsNullOrEmpty() || token.Split(" ").Length < 2)
+            {
+                return null;
+            };
+
             if (!handler.CanReadToken(token.Split(" ")[1]))
             {
                 return null;
             };
+
             var jwtToken = handler.ReadToken(token.Split(" ")[1]) as JwtSecurityToken;
             if (jwtToken == null)
             {
                 return null;
             }
-
 
             string Id = jwtToken.Claims.First(claim => claim.Type == "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier").Value;
 

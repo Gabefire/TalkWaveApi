@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using TalkWaveApi.Models;
 using TalkWaveApi.Services;
 using TalkWaveApi.Interfaces;
+using System.Net.Security;
 
 namespace TalkWaveApi.Controllers;
 
@@ -33,12 +34,47 @@ public class ChannelController(DatabaseContext context, IValidator validate) : C
                 _context.Channels,
                 csu => csu.ChannelId,
                 c => c.ChannelId,
-                (csu, c) => new ChannelDto
+                (csu, c) => new
                 {
-                    Name = c.Name,
+                    Type = c.Type,
+                    ChannelId = c.ChannelId
+                }
+            )
+            .Join(
+                _context.ChannelUsersStatuses,
+                csu => csu.ChannelId,
+                c => c.ChannelId,
+                (csu, c) => new
+                {
+                    Type = csu.Type,
+                    ChannelId = csu.ChannelId,
+                    UserId = c.UserId,
+                }
+            )
+            .Join(
+                _context.Users,
+                csu => csu.UserId,
+                user => user.UserId,
+                (csu, user) => new
+                {
+                    Type = csu.Type,
+                    ChannelId = csu.ChannelId,
+                    UserId = csu.UserId,
+                    userName = user.UserName
+                }
+            )
+            .Where(x => x.Type != "group" || x.UserId == user.UserId)
+            .Where(x => x.Type != "user" || x.UserId != user.UserId)
+            .Join(
+                _context.Channels,
+                csu => csu.ChannelId,
+                c => c.ChannelId,
+                (csu, c) => new ChannelDto()
+                {
+                    Name = c.Type == "group" ? c.Name : csu.userName,
+                    Type = c.Type,
                     ChannelId = c.ChannelId,
                     IsOwner = c.UserId == user.UserId,
-                    Type = c.Type,
                     ChannelPicLink = c.ChannelPicLink
                 }
             )

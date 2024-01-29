@@ -96,13 +96,19 @@ public class GroupChannelController(ILogger<GroupChannelController> logger, Data
     [HttpGet("{name}")]
     public async Task<ActionResult> SearchChannel(string name)
     {
-        // Validate JWT and get user
         var user = await _validate.ValidateJwt(HttpContext);
         if (user == null)
         {
             return Unauthorized();
         }
-        var channelGroupList = await _context.Channels.Where(x => x.Type == "group").Where(x => x.Name.ToLower().Contains(name.ToLower())).Take(10).ToListAsync();
+        var channelGroupList = await _context.Channels.Where(x => x.Type == "group").Where(x => x.Name.ToLower().Contains(name.ToLower())).Select(x => new ChannelDto
+        {
+            Name = x.Name,
+            ChannelId = x.ChannelId,
+            IsOwner = x.UserId == user.UserId,
+            Type = x.Type,
+            ChannelPicLink = x.ChannelPicLink
+        }).Take(5).ToListAsync();
 
         return Ok(channelGroupList);
     }

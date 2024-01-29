@@ -18,17 +18,17 @@ public class UserChannelController(ILogger<UserChannelController> logger, Databa
     private readonly ILogger _logger = logger;
 
     // POST new user channel
-    [HttpPost]
+    [HttpPost("{UserId}")]
     public async Task<ActionResult> CreateChannel(string UserId)
     {
-        if (!int.TryParse(UserId, out int Id))
-        {
-            return BadRequest();
-        }
-
         if (UserId.IsNullOrEmpty())
         {
             return BadRequest("UserId not present");
+        }
+
+        if (!int.TryParse(UserId, out int Id))
+        {
+            return BadRequest();
         }
 
         var user = await _validate.ValidateJwt(HttpContext);
@@ -65,7 +65,6 @@ public class UserChannelController(ILogger<UserChannelController> logger, Databa
 
         if (channelId != null)
         {
-
             return Conflict(new { message = $"An existing channel between this user already exists", channelId = channelId.ChannelId });
         }
 
@@ -91,6 +90,13 @@ public class UserChannelController(ILogger<UserChannelController> logger, Databa
             UserId = requestedUser.UserId
         };
 
+        ChannelDto channelDto = new()
+        {
+            ChannelId = channel.ChannelId,
+            Name = channel.Name,
+            IsOwner = channel.UserId == user.UserId,
+        };
+
         await _context.ChannelUsersStatuses.AddAsync(userCSU);
         await _context.ChannelUsersStatuses.AddAsync(requestedUserCSU);
 
@@ -100,7 +106,7 @@ public class UserChannelController(ILogger<UserChannelController> logger, Databa
 
         string actionName = nameof(ChannelController.GetChannel);
 
-        return CreatedAtAction(actionName, "Channel", new { id = channel.ChannelId }, channel);
+        return CreatedAtAction(actionName, "Channel", new { id = channel.ChannelId }, channelDto);
 
     }
 
