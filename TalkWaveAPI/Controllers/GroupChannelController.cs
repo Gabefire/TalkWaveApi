@@ -56,18 +56,8 @@ public class GroupChannelController(ILogger<GroupChannelController> logger, Data
 
     // POST new group channel
     [HttpPost]
-    public async Task<ActionResult> CreateChannel(ChannelDto channelDto)
+    public async Task<ActionResult> CreateChannel(GroupChannelDto groupChannel)
     {
-        if (channelDto.GetType() != typeof(ChannelDto))
-        {
-            return Unauthorized();
-        }
-
-        if (channelDto.Type != "group" && channelDto.Type != "user")
-        {
-            return BadRequest("Not a valid channel type");
-        }
-
         // Validate JWT and get user
         var user = await _validate.ValidateJwt(HttpContext);
         if (user == null)
@@ -77,9 +67,9 @@ public class GroupChannelController(ILogger<GroupChannelController> logger, Data
 
         Channel channel = new()
         {
-            Name = channelDto.Name,
+            Name = groupChannel.Name,
             UserId = user.UserId,
-            Type = channelDto.Type,
+            Type = "group",
         };
 
         await _context.Channels.AddAsync(channel);

@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using TalkWaveApi.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.Sqlite;
 
 namespace TalkWaveApi.Tests
 {
@@ -18,9 +19,19 @@ namespace TalkWaveApi.Tests
 
         private readonly HttpContext _context;
 
+        private readonly SqliteConnection _connection;
+
+
         public ChannelControllerTests()
         {
-            _contextOptions = new DbContextOptionsBuilder<DatabaseContext>().UseInMemoryDatabase(databaseName: "TalkWave")
+            // Create and open a connection. This creates the SQLite in-memory database, which will persist until the connection is closed
+            // at the end of the test (see Dispose below).
+            _connection = new SqliteConnection("Filename=:memory:");
+            _connection.Open();
+
+            // These options will be used by the context instances in this test suite, including the connection opened above.
+            _contextOptions = new DbContextOptionsBuilder<DatabaseContext>()
+            .UseSqlite(_connection)
             .Options;
 
             using var dbContext = new DatabaseContext(_contextOptions);
@@ -36,7 +47,7 @@ namespace TalkWaveApi.Tests
 
             validateMock.Setup(x => x.ValidateJwt(_context)).Returns(Task.FromResult<User?>(new User
             {
-                UserId = 1,
+                UserId = 2,
                 UserName = "test",
             }));
 
@@ -65,16 +76,16 @@ namespace TalkWaveApi.Tests
             var channelList = okResult?.Value as List<ChannelDto>;
             //asset
             Assert.IsType<List<ChannelDto>>(channelList);
-            Assert.Equal(2, channelList.Count());
+            Assert.Equal(3, channelList.Count());
             Assert.Contains(channelList, channel => channel.Name == "test1");
-            Assert.Contains(channelList, channel => channel.Name == "test3");
+            Assert.Contains(channelList, channel => channel.Name == "test0");
         }
 
         public static IEnumerable<object[]> Channels()
         {
             {
-                yield return new object[] { "2", new ChannelDto { Name = "test2", Type = "group", IsOwner = true } };
-                yield return new object[] { "1", new ChannelDto { Name = "test1", Type = "group", IsOwner = true } };
+                yield return new object[] { 2, new ChannelDto { Name = "test2", Type = "group", IsOwner = true } };
+                yield return new object[] { 1, new ChannelDto { Name = "test1", Type = "group", IsOwner = true } };
             }
         }
 
@@ -112,6 +123,28 @@ namespace TalkWaveApi.Tests
             var deletedChannel = await dbContext.Channels.FindAsync(int.Parse(Id));
             Assert.Null(deletedChannel);
         }
+        private List<User> GetUserList()
+        {
+            List<User> users = new List<User>
+            {
+                new User
+                {
+                    UserId = 1,
+                    UserName = "test0",
+                    Email = "test0@test.com",
+                    ProfilePicLink = "/"
+                },
+                new User
+                {
+                    UserId = 2,
+                    UserName = "test1",
+                    Email = "test1@test.com",
+                    ProfilePicLink = "/"
+                }
+
+            };
+            return users;
+        }
         private List<Channel> GetChannelsList()
         {
             List<Channel> channels = new List<Channel>
@@ -120,14 +153,14 @@ namespace TalkWaveApi.Tests
                 {
                     ChannelId = 1,
                     Type = "group",
-                    UserId = 1,
+                    UserId = 2,
                     Name = "test1"
                 },
                 new Channel
                 {
                     ChannelId = 2,
                     Type = "group",
-                    UserId = 1,
+                    UserId = 2,
                     Name = "test2"
                 },
                 new Channel
@@ -141,7 +174,7 @@ namespace TalkWaveApi.Tests
                 {
                     ChannelId = 4,
                     Type = "user",
-                    UserId = 2,
+                    UserId = 1,
                     Name = "test4"
                 },
             };
@@ -153,31 +186,38 @@ namespace TalkWaveApi.Tests
             {
                 new ChannelUserStatus
                 {
-                 UserId = 1,
+                 UserId = 2,
                  ChannelId = 1,
                 },
                 new ChannelUserStatus
                 {
                     UserId = 2,
-                    ChannelId = 2,
+                    ChannelId = 3,
                 },
                 new ChannelUserStatus
                 {
                     UserId = 1,
                     ChannelId = 3
+                },
+                new ChannelUserStatus
+                {
+                    UserId = 2,
+                    ChannelId = 2
                 }
             };
             return csu;
         }
-        DatabaseContext CreateContext() => new(_contextOptions);
+        DatabaseContext CreateContext() => new DatabaseContext(_contextOptions);
 
         private void SetUp(DatabaseContext context)
         {
             var csus = GetChannelUserStatusesList();
             var channels = GetChannelsList();
+            var users = GetUserList();
 
             context.ChannelUsersStatuses.AddRange(csus);
             context.Channels.AddRange(channels);
+            context.Users.AddRange(users);
             context.SaveChanges();
         }
     };

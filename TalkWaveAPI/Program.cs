@@ -7,20 +7,17 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
 
-var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
 
 var builder = WebApplication.CreateBuilder(args);
 
 
 // Add services to the container.
-
-var Configuration = builder.Configuration;
 builder.Services.AddCors(p => p.AddPolicy("corsapp", builder =>
 {
     builder.WithOrigins("*").AllowAnyMethod().AllowAnyHeader();
 }));
 builder.Services.AddDbContext<DatabaseContext>(options =>
-options.UseNpgsql(Configuration.GetConnectionString("DefaultConnection"), x => x.MigrationsHistoryTable("_EfMigrations", Configuration.GetSection("Schema").GetSection("TalkwaveDataSchema").Value)));
+options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"), x => x.MigrationsHistoryTable("_EfMigrations", builder.Configuration.GetSection("Schema").GetSection("TalkwaveDataSchema").Value)));
 
 builder.Services.AddControllers();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(x =>
@@ -90,7 +87,12 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 //Todo see if allowedOrigins will be needed
-app.UseWebSockets();
+var webSocketOptions = new WebSocketOptions
+{
+    KeepAliveInterval = TimeSpan.FromSeconds(30)
+};
+
+app.UseWebSockets(webSocketOptions);
 
 app.UseAuthorization();
 

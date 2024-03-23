@@ -57,6 +57,7 @@ public class UserChannelController(ILogger<UserChannelController> logger, Databa
             )
             .Where(c => c.type == "user")
             .Where(csu => csu.userId == requestedUser.UserId || csu.userId == user.UserId)
+            .Distinct()
             .GroupBy(x => x.channelId)
             .Select(x => new { ChannelId = x.Key, total = x.Count() })
             .Where(x => x.total > 1)

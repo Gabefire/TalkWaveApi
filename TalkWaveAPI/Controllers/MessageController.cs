@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Concurrent;
@@ -19,6 +18,7 @@ public class MessageController(DatabaseContext context, ILogger<MessageControlle
     private readonly DatabaseContext _context = context;
     private readonly ILogger _logger = logger;
     private readonly IValidator _validate = validator;
+    private static System.Timers.Timer? timer;
 
 
     // websocket connections
@@ -29,18 +29,14 @@ public class MessageController(DatabaseContext context, ILogger<MessageControlle
     [HttpGet("{ChannelType}/{Id}")]
     public async Task<IActionResult> GetWs([FromQuery(Name = "authorization")] string token, string ChannelType, string Id)
     {
-        connections.TryGetValue(Id, out List<WebSocket>? connectionList);
-        if (ChannelType == "user" && connectionList != null && connectionList.Count >= 2)
-        {
-            return BadRequest("User channel");
-        }
-
         var handler = new JwtSecurityTokenHandler();
+
 
         if (!handler.CanReadToken(token))
         {
             return BadRequest();
         };
+
         var jwtToken = handler.ReadToken(token) as JwtSecurityToken;
         if (jwtToken == null)
         {
@@ -95,7 +91,7 @@ public class MessageController(DatabaseContext context, ILogger<MessageControlle
                 author = userName;
             }
 
-            await Echo(websocket, user, author, ChannelId, channel.Name);
+            await Echo(websocket, user, author, channel);
         }
         else
         {
@@ -106,81 +102,99 @@ public class MessageController(DatabaseContext context, ILogger<MessageControlle
     }
 
 
-    private async Task Echo(WebSocket webSocket, User user, string userName, int ChannelId, string channelName)
+    private async Task Echo(WebSocket webSocket, User user, string userName, Channel channel)
     {
-        connections.AddOrUpdate(ChannelId.ToString(), [webSocket], (key, list) => { list.Add(webSocket); return list; });
+        connections.AddOrUpdate(channel.ChannelId.ToString(), [webSocket], (key, list) => { list.Add(webSocket); return list; });
 
         var buffer = new byte[1024 * 4];
         var clientBuffer = new ArraySegment<byte>(buffer);
-        var receiveResult = await webSocket.ReceiveAsync(clientBuffer, CancellationToken.None);
 
-        _logger.LogInformation("info: {User} connected to {Channel}", userName, channelName);
-        _logger.LogInformation("info: Connections in Channel: {Count}", connections[ChannelId.ToString()].Count);
+        _logger.LogInformation("{User} connected to ChannelId: {ChannelId}", userName, channel.ChannelId);
+        _logger.LogInformation("Connections in Channel: {Count}", connections[channel.ChannelId.ToString()].Count);
 
 
-        while (!receiveResult.CloseStatus.HasValue)
+        SetTimer(webSocket);
+
+        while (true)
         {
-            string result = Encoding.UTF8.GetString(buffer, 0, receiveResult.Count);
-
-            if (string.IsNullOrEmpty(result))
+            try
             {
-                continue;
-            }
-
-
-
-            DateTime currentDate = DateTime.UtcNow;
-
-            Message message = new()
-            {
-                UserId = user.UserId,
-                ChannelId = ChannelId,
-                Content = result,
-                CreatedAt = currentDate
-            };
-
-            await _context.Messages.AddAsync(message);
-            await _context.SaveChangesAsync();
-
-            MessageDto messageDto = new()
-            {
-                Author = userName,
-                Content = result,
-                CreatedAt = currentDate,
-            };
-            foreach (var item in connections[ChannelId.ToString()])
-            {
-                if (item == webSocket)
+                var receiveResult = await webSocket.ReceiveAsync(clientBuffer, CancellationToken.None);
+                if (receiveResult.CloseStatus.HasValue || webSocket.State != WebSocketState.Open)
                 {
-                    messageDto.IsOwner = true;
+                    if (webSocket.State != WebSocketState.Closed)
+                    {
+                        await webSocket.CloseAsync(receiveResult.CloseStatus!.Value, receiveResult.CloseStatusDescription, CancellationToken.None);
+                    }
+                    break;
+                }
+                string result = Encoding.UTF8.GetString(buffer, 0, receiveResult.Count);
+                timer?.Stop();
+                timer?.Start();
+
+                if (string.IsNullOrEmpty(result))
+                {
+                    _logger.LogDebug("Message Received: {result}", "ping");
+                    continue;
                 }
 
-                var jsonData = JsonSerializer.SerializeToUtf8Bytes(messageDto);
+                _logger.LogDebug("Message Received: {result}", result);
 
-                await item.SendAsync(
-                    jsonData,
-                    WebSocketMessageType.Binary,
-                    true,
-                    CancellationToken.None
-                );
+                DateTime currentDate = DateTime.UtcNow;
 
+                Message message = new()
+                {
+                    UserId = user.UserId,
+                    ChannelId = channel.ChannelId,
+                    Content = result,
+                    CreatedAt = currentDate
+                };
+
+                await _context.Messages.AddAsync(message);
+                await _context.SaveChangesAsync();
+
+                MessageDto messageDto = new()
+                {
+                    Author = userName,
+                    Content = result,
+                    CreatedAt = currentDate,
+                };
+
+                foreach (var item in connections[channel.ChannelId.ToString()])
+                {
+                    if (item == webSocket)
+                    {
+                        messageDto.IsOwner = true;
+                    }
+
+                    var jsonData = JsonSerializer.SerializeToUtf8Bytes(messageDto);
+
+                    await item.SendAsync(
+                        jsonData,
+                        WebSocketMessageType.Binary,
+                        true,
+                        CancellationToken.None
+                    );
+
+                }
+            }
+            catch
+            {
+                break;
             }
 
-            receiveResult = await webSocket.ReceiveAsync(clientBuffer, CancellationToken.None);
         }
 
-        //Clean up
-        await webSocket.CloseAsync(
-            receiveResult.CloseStatus.Value,
-            receiveResult.CloseStatusDescription,
-            CancellationToken.None);
 
-        connections.AddOrUpdate(ChannelId.ToString(), [webSocket], (key, list) => { list.Remove(webSocket); return list; });
 
-        if (connections[ChannelId.ToString()].Count == 0)
+        connections.AddOrUpdate(channel.ChannelId.ToString(), [webSocket], (key, list) => { list.Remove(webSocket); return list; });
+
+        if (connections[channel.ChannelId.ToString()].Count == 0)
         {
-            connections.TryRemove(ChannelId.ToString(), out _);
+            connections.TryRemove(channel.ChannelId.ToString(), out _);
         }
+
+        _logger.LogInformation("{User} left ChannelId: {ChannelId}", userName, channel.ChannelId);
 
     }
 
@@ -225,5 +239,19 @@ public class MessageController(DatabaseContext context, ILogger<MessageControlle
         }
 
         return Ok(messageDtos);
+    }
+
+    private static void SetTimer(WebSocket webSocket)
+    {
+        timer = new System.Timers.Timer(120000);
+        timer.Elapsed += (sender, e) =>
+        {
+            if (webSocket.State == WebSocketState.Open)
+            {
+                webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty, CancellationToken.None);
+            }
+        };
+        timer.AutoReset = false;
+        timer.Enabled = true;
     }
 }

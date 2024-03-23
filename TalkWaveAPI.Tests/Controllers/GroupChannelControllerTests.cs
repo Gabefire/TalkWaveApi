@@ -81,13 +81,13 @@ namespace TalkWaveApi.Tests
         public static IEnumerable<object[]> Channels()
         {
             {
-                yield return new object[] { new ChannelDto { Name = "test5", Type = "group", IsOwner = true } };
-                yield return new object[] { new ChannelDto { Name = "test6", Type = "group", IsOwner = true } };
+                yield return new object[] { new GroupChannelDto { Name = "test5", ChannelPicLink = "/" } };
+                yield return new object[] { new GroupChannelDto { Name = "test6", ChannelPicLink = "/" } };
             }
         }
         [Theory]
         [MemberData(nameof(Channels))]
-        public async void CreateChannel(ChannelDto channelDto)
+        public async void CreateChannel(GroupChannelDto channelDto)
         {
             //arrange
             using var loggerFactory = LoggerFactory.Create(loggingBuilder => loggingBuilder
@@ -176,7 +176,12 @@ namespace TalkWaveApi.Tests
                     {
                         UserId = 1,
                         ChannelId = 3
-                    }
+                    },
+                    new ChannelUserStatus
+                    {
+                        UserId = 1,
+                        ChannelId = 2,
+                    },
                 };
             return csu;
         }
