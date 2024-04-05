@@ -14,6 +14,8 @@ RUN dotnet publish -c release -o /app --no-restore
 # final stage/image
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
+ENV ASPNETCORE_URLS=http://*:80
 COPY --from=build /app ./
 EXPOSE 80
+
 ENTRYPOINT ["dotnet", "TalkWaveApi.dll"]
