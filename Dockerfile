@@ -8,7 +8,7 @@ COPY ./TalkWaveApi/TalkWaveApi.csproj .
 RUN dotnet restore
 
 # copy everything else and build app
-COPY TalkWaveApi/. .
+COPY ./TalkWaveApi/. .
 RUN dotnet publish -c release -o /app --no-restore
 
 # final stage/image

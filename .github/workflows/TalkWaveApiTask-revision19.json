@@ -1,0 +1,99 @@
+{
+    "taskDefinitionArn": "arn:aws:ecs:us-east-2:584742206045:task-definition/TalkWaveApiTask:19",
+    "containerDefinitions": [
+        {
+            "name": "talkwaveapi",
+            "image": "584742206045.dkr.ecr.us-east-2.amazonaws.com/talkwaveapi:latest",
+            "cpu": 922,
+            "memory": 1536,
+            "portMappings": [
+                {
+                    "name": "talkwaveapi-80-tcp",
+                    "containerPort": 80,
+                    "hostPort": 80,
+                    "protocol": "tcp",
+                    "appProtocol": "http"
+                }
+            ],
+            "essential": true,
+            "environment": [
+                {
+                    "name": "JwtSettings__Authority",
+                    "value": "https://TalkWaveApp.com"
+                },
+                {
+                    "name": "ConnectionStrings__DefaultConnection",
+                    "value": "Server=ip-172-31-13-253.us-east-2.compute.internal;Port=5432;Database=TalkWave;Username=gabrielunderwood;Password=GTHmkvfhwpmb4zhg"
+                },
+                {
+                    "name": "JwtSettings__Key",
+                    "value": "this is my custom Tecret key for authentication"
+                }
+            ],
+            "mountPoints": [],
+            "volumesFrom": [],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-create-group": "true",
+                    "awslogs-group": "/ecs/TalkWaveApiTask",
+                    "awslogs-region": "us-east-2",
+                    "awslogs-stream-prefix": "ecs"
+                }
+            },
+            "systemControls": []
+        }
+    ],
+    "family": "TalkWaveApiTask",
+    "taskRoleArn": "arn:aws:iam::584742206045:role/ecsTaskExecutionRole",
+    "executionRoleArn": "arn:aws:iam::584742206045:role/ecsTaskExecutionRole",
+    "networkMode": "awsvpc",
+    "revision": 19,
+    "volumes": [],
+    "status": "ACTIVE",
+    "requiresAttributes": [
+        {
+            "name": "com.amazonaws.ecs.capability.logging-driver.awslogs"
+        },
+        {
+            "name": "ecs.capability.execution-role-awslogs"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.ecr-auth"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.19"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.task-iam-role"
+        },
+        {
+            "name": "ecs.capability.execution-role-ecr-pull"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.18"
+        },
+        {
+            "name": "ecs.capability.task-eni"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.29"
+        }
+    ],
+    "placementConstraints": [],
+    "compatibilities": [
+        "EC2"
+    ],
+    "requiresCompatibilities": [
+        "EC2"
+    ],
+    "cpu": "1024",
+    "memory": "1536",
+    "runtimePlatform": {
+        "cpuArchitecture": "X86_64",
+        "operatingSystemFamily": "LINUX"
+    },
+    "registeredAt": "2024-04-07T00:59:42.313Z",
+    "registeredBy": "arn:aws:iam::584742206045:user/Gabe",
+    "tags": []
+}
