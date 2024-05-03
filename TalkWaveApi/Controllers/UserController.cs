@@ -55,7 +55,7 @@ public class UserController(IConfiguration configuration, DatabaseContext contex
 
     //POST login receive token
     [HttpPost("login")]
-    public async Task<IActionResult> Login(UserDto request)
+    public async Task<IActionResult> Login(UserLoginDto request)
     {
         // logins in with email. User name is a placeholder
 
