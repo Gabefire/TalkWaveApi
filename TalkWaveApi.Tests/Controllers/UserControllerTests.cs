@@ -124,7 +124,7 @@ namespace TalkWaveApi.Tests
 
             var user = await dbContext.Users.Where(x => x.Email == request.Email).SingleOrDefaultAsync();
 
-            var okResult = await controller.Login(request);
+            var okResult = await controller.Login(new UserLoginDto { UserName = request.UserName, Email = request.Email, Password = request.Password });
 
             //asset
             Assert.IsType<OkObjectResult>(okResult);
