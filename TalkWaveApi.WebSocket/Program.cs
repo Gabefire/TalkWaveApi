@@ -4,8 +4,13 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using System.Text;
+using Microsoft.IdentityModel.Tokens;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
 var Configuration = builder.Configuration;
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
@@ -17,10 +22,27 @@ builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-}).AddJwtBearer(options =>
+}).AddJwtBearer(x =>
   {
-      options.Authority = "*";
-      options.Events = new JwtBearerEvents
+      x.RequireHttpsMetadata = false;
+      var key = Encoding.UTF8.GetBytes(Configuration["JwtSettings:Key"]!);
+      x.SaveToken = true;
+      //TODO: remove/change the below two in deployment
+      x.Authority = Configuration["JwtSettings:Authority"]!;
+      if (builder.Environment.IsDevelopment())
+      {
+          x.RequireHttpsMetadata = false;
+      }
+      x.TokenValidationParameters = new TokenValidationParameters
+      {
+          ValidateIssuer = false,
+          ValidateAudience = false,
+          ValidateLifetime = true,
+          ValidateIssuerSigningKey = true,
+          ClockSkew = TimeSpan.Zero,
+          IssuerSigningKey = new SymmetricSecurityKey(key)
+      };
+      x.Events = new JwtBearerEvents
       {
           OnMessageReceived = context =>
           {
@@ -29,7 +51,7 @@ builder.Services.AddAuthentication(options =>
               // If the request is for our hub...
               var path = context.HttpContext.Request.Path;
               if (!string.IsNullOrEmpty(accessToken) &&
-                  path.StartsWithSegments("/Messages"))
+                path.StartsWithSegments("/api/Messages"))
               {
                   // Read the token out of the query string
                   context.Token = accessToken;
@@ -38,6 +60,8 @@ builder.Services.AddAuthentication(options =>
           }
       };
   });
+
+builder.Services.AddSingleton<IUserIdProvider, UserIdProvider>();
 
 var RedisConnection = builder.Configuration.GetConnectionString("RedisConnection");
 
@@ -52,7 +76,16 @@ else
 }
 var app = builder.Build();
 
+app.UseAuthorization();
 app.MapGet("/", () => "Hello World!");
-app.MapHub<ChatHub>("/Messages");
+app.MapHub<ChatHub>("/api/Messages");
 
 app.Run();
+
+public class UserIdProvider : IUserIdProvider
+{
+    public virtual string GetUserId(HubConnectionContext connection)
+    {
+        return connection.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value!;
+    }
+}

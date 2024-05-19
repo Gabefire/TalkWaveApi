@@ -1,84 +1,77 @@
 using System.IdentityModel.Tokens.Jwt;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using TalkWaveApi.WebSocket.Models;
 using TalkWaveApi.WebSocket.Services;
 
 
 namespace TalkWaveApi.WebSocket.Hubs
 {
-
-    [Authorize]
-    public class ChatHub(DatabaseContext dbContext) : Hub
+    public class ChatHub(DatabaseContext dbContext, ILogger logger) : Hub
     {
         private readonly DatabaseContext _context = dbContext;
+        private readonly ILogger _logger = logger;
         public async Task JoinGroup(string groupId)
         {
-            string? token = Context.GetHttpContext()?.Request.Query["access_token"];
-            var user = ValidateJwt(token);
+            string? userId = Context.UserIdentifier;
+
+            _logger.LogDebug(userId);
+
+            if (!int.TryParse(userId, out int userParsedId))
+            {
+                Context.Abort();
+                return;
+            }
+            User? user = await _context.Users.FindAsync(userParsedId);
+            if (user == null)
+            {
+                Context.Abort();
+                return;
+            }
+            await ValidateChannel(groupId, user, Context);
+
             await Groups.AddToGroupAsync(Context.ConnectionId, groupId);
         }
 
         public async Task LeaveGroup(string groupId)
         {
-            string? token = Context.GetHttpContext()?.Request.Query["access_token"];
-            var user = ValidateJwt(token);
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupId);
         }
 
         public async Task SendMessage(string groupId, string message)
         {
-            string? token = Context.GetHttpContext()?.Request.Query["access_token"];
-            var user = await ValidateJwt(token);
-            await Clients.Group(groupId).SendAsync("ReceiveMessage", user?.UserName, message);
-        }
-        public async Task<User?> ValidateJwt(string? token)
-        {
-            var handler = new JwtSecurityTokenHandler();
-
-
-            if (!handler.CanReadToken(token))
-            {
-                throw new Exception("Bad request");
-            };
-
-            var jwtToken = handler.ReadToken(token) as JwtSecurityToken;
-            if (jwtToken == null)
-            {
-                throw new Exception("Bad request");
-            }
-
-            string userId = jwtToken.Claims.First(claim => claim.Type == "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier").Value;
-
+            string? userId = Context.UserIdentifier;
             if (!int.TryParse(userId, out int userParsedId))
             {
-                throw new Exception("Bad request");
+                Context.Abort();
+                return;
             }
-
-            //Validate and get user
-            var user = await _context.Users.FindAsync(userParsedId) ?? throw new Exception("Bad request");
-            return user;
+            User? user = await _context.Users.FindAsync(userParsedId);
+            await Clients.Group(groupId).SendAsync("ReceiveMessage", user?.UserName, message);
         }
-        public async Task ValidateChannel(string Id)
+        public async Task ValidateChannel(string Id, User user, HubCallerContext context)
         {
             //Validate Id can be casted as int
             if (!int.TryParse(Id, out int ChannelId))
             {
-                return BadRequest("Not a valid id");
+                context.Abort();
             }
 
             //Validate channel exists
             var channel = await _context.Channels.FindAsync(ChannelId);
             if (channel == null)
             {
-                return BadRequest("Channel does not exist");
+                context.Abort();
             }
 
             //Validate user is in channel
             var userTest = await _context.ChannelUsersStatuses.Where(x => x.ChannelId == ChannelId).Where(x => x.UserId == user.UserId).FirstOrDefaultAsync();
             if (userTest == null)
             {
-                return BadRequest("User not in channel");
+                context.Abort();
             }
         }
     };
