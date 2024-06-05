@@ -1,28 +1,27 @@
-using System.IdentityModel.Tokens.Jwt;
+
+using System.Diagnostics;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
 using TalkWaveApi.WebSocket.Models;
 using TalkWaveApi.WebSocket.Services;
 
 
 namespace TalkWaveApi.WebSocket.Hubs
 {
-    public class ChatHub(DatabaseContext dbContext, ILogger logger) : Hub
+    public class ChatHub(DatabaseContext dbContext) : Hub
     {
         private readonly DatabaseContext _context = dbContext;
-        private readonly ILogger _logger = logger;
         public async Task JoinGroup(string groupId)
         {
             string? userId = Context.UserIdentifier;
 
-            _logger.LogDebug(userId);
-
             if (!int.TryParse(userId, out int userParsedId))
             {
                 Context.Abort();
+                Debug.WriteLine("Failed due to no Userid");
                 return;
             }
             User? user = await _context.Users.FindAsync(userParsedId);
@@ -34,13 +33,13 @@ namespace TalkWaveApi.WebSocket.Hubs
             await ValidateChannel(groupId, user, Context);
 
             await Groups.AddToGroupAsync(Context.ConnectionId, groupId);
+
         }
 
         public async Task LeaveGroup(string groupId)
         {
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupId);
         }
-
         public async Task SendMessage(string groupId, string message)
         {
             string? userId = Context.UserIdentifier;

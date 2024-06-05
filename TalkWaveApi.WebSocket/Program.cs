@@ -7,13 +7,24 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
+using StackExchange.Redis;
+using System.Diagnostics;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
+
 var Configuration = builder.Configuration;
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+builder.Services.AddSingleton<IUserIdProvider, UserIdProvider>();
+
+builder.Services.AddCors(p => p.AddPolicy("corsapp", builder =>
+{
+    builder.WithOrigins("http://localhost:5173").AllowAnyMethod().AllowAnyHeader().AllowCredentials();
+}));
+
 builder.Services.AddDbContext<DatabaseContext>(options =>
 options.UseNpgsql(Configuration.GetConnectionString("DefaultConnection"), x => x.MigrationsHistoryTable("_EfMigrations", Configuration.GetSection("Schema").GetSection("TalkwaveDataSchema").Value)));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
@@ -24,15 +35,9 @@ builder.Services.AddAuthentication(options =>
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
 }).AddJwtBearer(x =>
   {
-      x.RequireHttpsMetadata = false;
       var key = Encoding.UTF8.GetBytes(Configuration["JwtSettings:Key"]!);
-      x.SaveToken = true;
-      //TODO: remove/change the below two in deployment
+      x.RequireHttpsMetadata = false;
       x.Authority = Configuration["JwtSettings:Authority"]!;
-      if (builder.Environment.IsDevelopment())
-      {
-          x.RequireHttpsMetadata = false;
-      }
       x.TokenValidationParameters = new TokenValidationParameters
       {
           ValidateIssuer = false,
@@ -46,8 +51,8 @@ builder.Services.AddAuthentication(options =>
       {
           OnMessageReceived = context =>
           {
-              var accessToken = context.Request.Query["access_token"];
 
+              var accessToken = context.Request.Query["access_token"];
               // If the request is for our hub...
               var path = context.HttpContext.Request.Path;
               if (!string.IsNullOrEmpty(accessToken) &&
@@ -57,35 +62,40 @@ builder.Services.AddAuthentication(options =>
                   context.Token = accessToken;
               }
               return Task.CompletedTask;
-          }
+          },
       };
   });
 
-builder.Services.AddSingleton<IUserIdProvider, UserIdProvider>();
-
 var RedisConnection = builder.Configuration.GetConnectionString("RedisConnection");
-
 if (RedisConnection != null)
 {
-    builder.Services.AddSignalR()
-        .AddStackExchangeRedis(RedisConnection);
+    builder.Services.AddSignalR(hubOptions =>
+    {
+        hubOptions.EnableDetailedErrors = true;
+        hubOptions.KeepAliveInterval = TimeSpan.FromSeconds(10);
+        hubOptions.HandshakeTimeout = TimeSpan.FromSeconds(5);
+    })
+        .AddStackExchangeRedis(RedisConnection, options => { options.Configuration.ChannelPrefix = RedisChannel.Literal("TalkWaveGroup"); });
 }
 else
 {
     throw new Exception("No redis connection string");
 }
+
 var app = builder.Build();
+app.UseCors("corsapp");
 
+app.UseAuthentication();
+app.UseRouting();
 app.UseAuthorization();
-app.MapGet("/", () => "Hello World!");
 app.MapHub<ChatHub>("/api/Messages");
-
 app.Run();
 
-public class UserIdProvider : IUserIdProvider
+
+public class EmailBasedUserIdProvider : IUserIdProvider
 {
     public virtual string GetUserId(HubConnectionContext connection)
     {
-        return connection.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value!;
+        return connection.User?.FindFirst(ClaimTypes.Email)?.Value!;
     }
 }
