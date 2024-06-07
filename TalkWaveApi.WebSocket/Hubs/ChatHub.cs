@@ -68,7 +68,6 @@ namespace TalkWaveApi.WebSocket.Hubs
                 Content = message,
                 CreatedAt = DateTime.UtcNow,
             };
-
             await _context.Messages.AddAsync(dbMessage);
             await _context.SaveChangesAsync();
 
