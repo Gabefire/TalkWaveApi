@@ -21,7 +21,7 @@
           "ProxyResource": {
             "Type": "Api",
             "Properties": {
-              "Path": "/{proxy+}",
+              "Path": "/api/{proxy+}",
               "Method": "ANY"
             }
           },
