@@ -33,6 +33,8 @@ builder.Services.AddDbContext<DatabaseContext>(options =>
 options.UseNpgsql(Configuration.GetConnectionString("DefaultConnection"), x => x.MigrationsHistoryTable("_EfMigrations", Configuration.GetSection("Schema").GetSection("TalkwaveDataSchema").Value)));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
+builder.Services.AddHealthChecks();
+
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -88,6 +90,7 @@ else
 
 var app = builder.Build();
 
+
 if (app.Environment.IsDevelopment())
 {
     app.UseCors("dev");
@@ -100,6 +103,7 @@ else
 app.UseAuthentication();
 app.UseRouting();
 app.UseAuthorization();
+app.MapHealthChecks("/health");
 app.MapHub<ChatHub>("/api/Message");
 app.Run();
 
