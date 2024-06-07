@@ -8,7 +8,6 @@ using System.Text;
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
 using StackExchange.Redis;
-using System.Diagnostics;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Logging.ClearProviders();
@@ -20,9 +19,14 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 
 builder.Services.AddSingleton<IUserIdProvider, UserIdProvider>();
 
-builder.Services.AddCors(p => p.AddPolicy("corsapp", builder =>
+builder.Services.AddCors(p => p.AddPolicy("dev", builder =>
 {
     builder.WithOrigins("http://localhost:5173").AllowAnyMethod().AllowAnyHeader().AllowCredentials();
+}));
+
+builder.Services.AddCors(p => p.AddPolicy("prod", builder =>
+{
+    builder.WithOrigins("https://talkwaveapp.com").AllowAnyMethod().AllowAnyHeader().AllowCredentials();
 }));
 
 builder.Services.AddDbContext<DatabaseContext>(options =>
@@ -56,7 +60,7 @@ builder.Services.AddAuthentication(options =>
               // If the request is for our hub...
               var path = context.HttpContext.Request.Path;
               if (!string.IsNullOrEmpty(accessToken) &&
-                path.StartsWithSegments("/api/Messages"))
+                path.StartsWithSegments("/api/Message"))
               {
                   // Read the token out of the query string
                   context.Token = accessToken;
@@ -83,12 +87,20 @@ else
 }
 
 var app = builder.Build();
-app.UseCors("corsapp");
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseCors("dev");
+}
+else
+{
+    app.UseCors("prod");
+}
 
 app.UseAuthentication();
 app.UseRouting();
 app.UseAuthorization();
-app.MapHub<ChatHub>("/api/Messages");
+app.MapHub<ChatHub>("/api/Message");
 app.Run();
 
 

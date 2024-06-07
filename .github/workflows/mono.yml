@@ -1,0 +1,41 @@
+name: Deploy to MonoRepo to Lambda
+
+on:
+  push:
+    branches: ["main"]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::584742206045:role/Github_actions_admin
+          role-session-name: GitHub_to_AWS_via_FederatedOIDC
+          aws-region: us-east-2
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Install .NET Core
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Install Amazon Lambda Tool
+        run: dotnet tool install -g Amazon.Lambda.Tools
+
+      - name: Deploy CloudFormation template
+        run: dotnet lambda deploy-serverless TalkWaveApi -t TalkWaveApi/serverless.template -sb talkwaveapi

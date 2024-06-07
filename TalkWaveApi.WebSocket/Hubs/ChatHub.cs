@@ -11,6 +11,7 @@ using TalkWaveApi.WebSocket.Services;
 
 namespace TalkWaveApi.WebSocket.Hubs
 {
+    [Authorize]
     public class ChatHub(DatabaseContext dbContext) : Hub
     {
         private readonly DatabaseContext _context = dbContext;
@@ -21,7 +22,6 @@ namespace TalkWaveApi.WebSocket.Hubs
             if (!int.TryParse(userId, out int userParsedId))
             {
                 Context.Abort();
-                Debug.WriteLine("Failed due to no Userid");
                 return;
             }
             User? user = await _context.Users.FindAsync(userParsedId);
@@ -31,7 +31,6 @@ namespace TalkWaveApi.WebSocket.Hubs
                 return;
             }
             await ValidateChannel(groupId, user, Context);
-
             await Groups.AddToGroupAsync(Context.ConnectionId, groupId);
 
         }
@@ -49,7 +48,31 @@ namespace TalkWaveApi.WebSocket.Hubs
                 return;
             }
             User? user = await _context.Users.FindAsync(userParsedId);
-            await Clients.Group(groupId).SendAsync("ReceiveMessage", user?.UserName, message);
+            if (user == null)
+            {
+                Context.Abort();
+                return;
+            }
+
+            Message dbMessage = new()
+            {
+                UserId = userParsedId,
+                ChannelId = int.Parse(groupId),
+                Content = message,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            MessageDto messageDto = new()
+            {
+                Author = user.UserName,
+                Content = message,
+                CreatedAt = DateTime.UtcNow,
+            };
+
+            await _context.Messages.AddAsync(dbMessage);
+            await _context.SaveChangesAsync();
+
+            await Clients.Group(groupId).SendAsync("ReceiveMessage", user.UserId, messageDto);
         }
         public async Task ValidateChannel(string Id, User user, HubCallerContext context)
         {
