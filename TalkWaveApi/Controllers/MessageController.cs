@@ -21,8 +21,7 @@ public class MessageController(DatabaseContext context, ILogger<MessageControlle
     private static System.Timers.Timer? timer;
 
 
-    // websocket connections
-    // Maybe add a dictionary with user for websocket to validate session already exists or not
+    // websocket connections route is not used anymore switch to signalR microservices left it here to show.
     public static readonly ConcurrentDictionary<string, List<WebSocket>> connections = new();
 
     // Websocket messages

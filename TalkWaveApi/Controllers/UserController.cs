@@ -72,7 +72,7 @@ public class UserController(IConfiguration configuration, DatabaseContext contex
         };
         string token = CreateToken(user);
 
-        return Ok(new { token, userName = user.UserName });
+        return Ok(new { token, userName = user.UserName, id = user.UserId });
     }
 
     // PUT edit user
@@ -141,7 +141,9 @@ public class UserController(IConfiguration configuration, DatabaseContext contex
 
         var token = new JwtSecurityToken(
             claims: claims,
-            signingCredentials: creds
+            signingCredentials: creds,
+            // Added a large expire date for now this needs change later once mechanism is added to app to auto refresh token
+            expires: DateTime.UtcNow.AddYears(1000)
         );
 
         var jwt = new JwtSecurityTokenHandler().WriteToken(token);
