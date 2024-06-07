@@ -25,7 +25,7 @@ public class Startup
     {
         services.AddCors(p => p.AddPolicy("corsapp", builder =>
         {
-            builder.WithOrigins("*").AllowAnyMethod().AllowAnyHeader().AllowCredentials();
+            builder.WithOrigins("*").AllowAnyMethod().AllowAnyHeader();
         }));
 
 
