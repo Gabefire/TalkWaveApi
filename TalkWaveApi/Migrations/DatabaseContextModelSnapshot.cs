@@ -53,7 +53,7 @@ namespace TalkWaveApi.Migrations
 
                     b.HasKey("ChannelId");
 
-                    b.ToTable("Channels");
+                    b.ToTable("Channels", (string)null);
                 });
 
             modelBuilder.Entity("TalkWaveApi.Models.ChannelUserStatus", b =>
@@ -72,7 +72,7 @@ namespace TalkWaveApi.Migrations
 
                     b.HasKey("ChannelUsersStatusId");
 
-                    b.ToTable("ChannelUsersStatuses");
+                    b.ToTable("ChannelUsersStatuses", (string)null);
                 });
 
             modelBuilder.Entity("TalkWaveApi.Models.Message", b =>
@@ -100,7 +100,7 @@ namespace TalkWaveApi.Migrations
 
                     b.HasIndex("ChannelId");
 
-                    b.ToTable("Messages");
+                    b.ToTable("Messages", (string)null);
                 });
 
             modelBuilder.Entity("TalkWaveApi.Models.User", b =>
@@ -136,7 +136,7 @@ namespace TalkWaveApi.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 #pragma warning restore 612, 618
         }
