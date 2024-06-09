@@ -73,6 +73,7 @@ builder.Services.AddAuthentication(options =>
   });
 
 var RedisConnection = builder.Configuration.GetConnectionString("RedisConnection");
+
 if (RedisConnection != null)
 {
     builder.Services.AddSignalR(hubOptions =>
@@ -80,12 +81,16 @@ if (RedisConnection != null)
         hubOptions.EnableDetailedErrors = true;
         hubOptions.KeepAliveInterval = TimeSpan.FromSeconds(10);
         hubOptions.HandshakeTimeout = TimeSpan.FromSeconds(5);
-    })
-        .AddStackExchangeRedis(RedisConnection, options => { options.Configuration.ChannelPrefix = RedisChannel.Literal("TalkWaveGroup"); });
+    }).AddStackExchangeRedis(RedisConnection, options => { options.Configuration.ChannelPrefix = RedisChannel.Literal("TalkWaveGroup"); });
 }
 else
 {
-    throw new Exception("No redis connection string");
+    builder.Services.AddSignalR(hubOptions =>
+    {
+        hubOptions.EnableDetailedErrors = true;
+        hubOptions.KeepAliveInterval = TimeSpan.FromSeconds(10);
+        hubOptions.HandshakeTimeout = TimeSpan.FromSeconds(5);
+    });
 }
 
 var app = builder.Build();
