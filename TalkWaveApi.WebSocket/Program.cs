@@ -94,7 +94,6 @@ if (RedisConnection != null)
             {
                 config.Ssl = true;
                 config.ResolveDns = true;
-                config.SslProtocols = System.Security.Authentication.SslProtocols.Tls13 | System.Security.Authentication.SslProtocols.Tls12;
             }
             config.EndPoints.Add(RedisConnection, 6379);
             config.SetDefaultPorts();
