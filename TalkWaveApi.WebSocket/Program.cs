@@ -83,7 +83,6 @@ if (RedisConnection != null)
         hubOptions.HandshakeTimeout = TimeSpan.FromSeconds(5);
     }).AddStackExchangeRedis(RedisConnection, options =>
     {
-        options.Configuration.ChannelPrefix = RedisChannel.Literal("TalkWaveGroup");
         options.Configuration.Ssl = true;
         options.Configuration.SslProtocols = System.Security.Authentication.SslProtocols.Tls13;
         options.Configuration.AbortOnConnectFail = false;
