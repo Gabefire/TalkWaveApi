@@ -72,49 +72,40 @@ builder.Services.AddAuthentication(options =>
       };
   });
 
-var RedisConnection = builder.Configuration.GetConnectionString("RedisConnection");
 
-if (RedisConnection != null)
+
+builder.Services.AddSignalR(hubOptions =>
 {
-    builder.Services.AddSignalR(hubOptions =>
+    hubOptions.EnableDetailedErrors = true;
+    hubOptions.KeepAliveInterval = TimeSpan.FromSeconds(10);
+    hubOptions.HandshakeTimeout = TimeSpan.FromSeconds(5);
+}).AddStackExchangeRedis(options =>
+{
+    options.ConnectionFactory = async writer =>
     {
-        hubOptions.EnableDetailedErrors = true;
-        hubOptions.KeepAliveInterval = TimeSpan.FromSeconds(10);
-        hubOptions.HandshakeTimeout = TimeSpan.FromSeconds(5);
-    }).AddStackExchangeRedis(RedisConnection, options =>
-    {
-        options.ConnectionFactory = async writer =>
+        var config = new ConfigurationOptions
         {
-            var config = new ConfigurationOptions
-            {
-                AbortOnConnectFail = false,
-                Ssl = true
-            };
-            var connection = await ConnectionMultiplexer.ConnectAsync(config, writer);
-            connection.ConnectionFailed += (_, e) =>
-            {
-                Console.WriteLine(e.Exception?.ToString());
-                Console.WriteLine("Connection to Redis failed.");
-            };
-
-            if (!connection.IsConnected)
-            {
-                Console.WriteLine("Did not connect to Redis.");
-            }
-
-            return connection;
+            AbortOnConnectFail = false,
+            Ssl = true,
         };
-    });
-}
-else
-{
-    builder.Services.AddSignalR(hubOptions =>
-    {
-        hubOptions.EnableDetailedErrors = true;
-        hubOptions.KeepAliveInterval = TimeSpan.FromSeconds(10);
-        hubOptions.HandshakeTimeout = TimeSpan.FromSeconds(5);
-    });
-}
+        config.EndPoints.Add("talkwavews-vxc8e3.serverless.use2.cache.amazonaws.com", 6379);
+        config.SetDefaultPorts();
+        var connection = await ConnectionMultiplexer.ConnectAsync(config, writer);
+        connection.ConnectionFailed += (_, e) =>
+        {
+            Console.WriteLine(e.Exception?.ToString());
+            Console.WriteLine("Connection to Redis failed.");
+        };
+
+        if (!connection.IsConnected)
+        {
+            Console.WriteLine("Did not connect to Redis.");
+        }
+
+        return connection;
+    };
+});
+
 
 var app = builder.Build();
 
