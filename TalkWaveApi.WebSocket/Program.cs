@@ -85,7 +85,7 @@ if (RedisConnection != null)
     {
         options.Configuration.ChannelPrefix = RedisChannel.Literal("TalkWaveGroup");
         options.Configuration.Ssl = true;
-        options.Configuration.SslProtocols = System.Security.Authentication.SslProtocols.Tls12;
+        options.Configuration.SslProtocols = System.Security.Authentication.SslProtocols.Tls13;
         options.Configuration.AbortOnConnectFail = false;
     });
 }
