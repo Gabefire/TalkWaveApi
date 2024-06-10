@@ -98,6 +98,10 @@ app.UseRouting();
 app.UseAuthorization();
 app.MapHealthChecks("/health");
 app.MapHub<ChatHub>("/api/Message");
+app.MapGet("/", async context =>
+    {
+        await context.Response.WriteAsync("Welcome to running ASP.NET Core on ECS");
+    });
 app.Run();
 
 
