@@ -73,52 +73,13 @@ builder.Services.AddAuthentication(options =>
   });
 
 
-var RedisConnection = builder.Configuration.GetConnectionString("RedisConnection");
 
-if (RedisConnection != null)
-{
-    builder.Services.AddSignalR(hubOptions =>
+builder.Services.AddSignalR(hubOptions =>
     {
         hubOptions.EnableDetailedErrors = true;
         hubOptions.KeepAliveInterval = TimeSpan.FromSeconds(10);
         hubOptions.HandshakeTimeout = TimeSpan.FromSeconds(5);
-    }).AddStackExchangeRedis(options =>
-    {
-        options.ConnectionFactory = async writer =>
-        {
-            var config = new ConfigurationOptions
-            {
-                AbortOnConnectFail = false,
-            };
-            if (builder.Environment.IsProduction())
-            {
-                config.Ssl = true;
-                config.ResolveDns = true;
-            }
-            config.EndPoints.Add(RedisConnection, 6379);
-            config.SetDefaultPorts();
-            var connection = await ConnectionMultiplexer.ConnectAsync(config, writer);
-            connection.ConnectionFailed += (_, e) =>
-            {
-                Console.WriteLine(e.Exception?.ToString());
-                Console.WriteLine("Connection to Redis failed.");
-                Console.WriteLine(RedisConnection);
-            };
-
-            if (!connection.IsConnected)
-            {
-                Console.WriteLine("Did not connect to Redis.");
-                connection.ErrorMessage += (_, e) =>
-                {
-                    Console.WriteLine(e.Message.ToString());
-                };
-            }
-
-
-            return connection;
-        };
     });
-}
 
 var app = builder.Build();
 
