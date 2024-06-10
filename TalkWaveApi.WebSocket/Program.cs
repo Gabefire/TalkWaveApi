@@ -81,7 +81,13 @@ if (RedisConnection != null)
         hubOptions.EnableDetailedErrors = true;
         hubOptions.KeepAliveInterval = TimeSpan.FromSeconds(10);
         hubOptions.HandshakeTimeout = TimeSpan.FromSeconds(5);
-    }).AddStackExchangeRedis(RedisConnection, options => { options.Configuration.ChannelPrefix = RedisChannel.Literal("TalkWaveGroup"); });
+    }).AddStackExchangeRedis(RedisConnection, options =>
+    {
+        options.Configuration.ChannelPrefix = RedisChannel.Literal("TalkWaveGroup");
+        options.Configuration.Ssl = true;
+        options.Configuration.SslProtocols = System.Security.Authentication.SslProtocols.Tls12;
+        options.Configuration.AbortOnConnectFail = false;
+    });
 }
 else
 {
