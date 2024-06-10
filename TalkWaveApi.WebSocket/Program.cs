@@ -83,8 +83,27 @@ if (RedisConnection != null)
         hubOptions.HandshakeTimeout = TimeSpan.FromSeconds(5);
     }).AddStackExchangeRedis(RedisConnection, options =>
     {
-        options.Configuration.Ssl = true;
-        options.Configuration.AbortOnConnectFail = false;
+        options.ConnectionFactory = async writer =>
+        {
+            var config = new ConfigurationOptions
+            {
+                AbortOnConnectFail = false,
+                Ssl = true
+            };
+            var connection = await ConnectionMultiplexer.ConnectAsync(config, writer);
+            connection.ConnectionFailed += (_, e) =>
+            {
+                Console.WriteLine(e.Exception?.ToString());
+                Console.WriteLine("Connection to Redis failed.");
+            };
+
+            if (!connection.IsConnected)
+            {
+                Console.WriteLine("Did not connect to Redis.");
+            }
+
+            return connection;
+        };
     });
 }
 else
