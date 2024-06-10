@@ -73,39 +73,53 @@ builder.Services.AddAuthentication(options =>
   });
 
 
+var RedisConnection = builder.Configuration.GetConnectionString("RedisConnection");
 
-builder.Services.AddSignalR(hubOptions =>
+if (RedisConnection != null)
 {
-    hubOptions.EnableDetailedErrors = true;
-    hubOptions.KeepAliveInterval = TimeSpan.FromSeconds(10);
-    hubOptions.HandshakeTimeout = TimeSpan.FromSeconds(5);
-}).AddStackExchangeRedis(options =>
-{
-    options.ConnectionFactory = async writer =>
+    builder.Services.AddSignalR(hubOptions =>
     {
-        var config = new ConfigurationOptions
+        hubOptions.EnableDetailedErrors = true;
+        hubOptions.KeepAliveInterval = TimeSpan.FromSeconds(10);
+        hubOptions.HandshakeTimeout = TimeSpan.FromSeconds(5);
+    }).AddStackExchangeRedis(options =>
+    {
+        options.ConnectionFactory = async writer =>
         {
-            AbortOnConnectFail = false,
-            Ssl = true,
+            var config = new ConfigurationOptions
+            {
+                AbortOnConnectFail = false,
+            };
+            if (builder.Environment.IsProduction())
+            {
+                config.Ssl = true;
+                config.ResolveDns = true;
+                config.SslProtocols = System.Security.Authentication.SslProtocols.Tls13 | System.Security.Authentication.SslProtocols.Tls12;
+            }
+            config.EndPoints.Add(RedisConnection, 6379);
+            config.SetDefaultPorts();
+            var connection = await ConnectionMultiplexer.ConnectAsync(config, writer);
+            connection.ConnectionFailed += (_, e) =>
+            {
+                Console.WriteLine(e.Exception?.ToString());
+                Console.WriteLine("Connection to Redis failed.");
+                Console.WriteLine(RedisConnection);
+            };
+
+            if (!connection.IsConnected)
+            {
+                Console.WriteLine("Did not connect to Redis.");
+                connection.ErrorMessage += (_, e) =>
+                {
+                    Console.WriteLine(e.Message.ToString());
+                };
+            }
+
+
+            return connection;
         };
-        config.EndPoints.Add("talkwavews-vxc8e3.serverless.use2.cache.amazonaws.com", 6379);
-        config.SetDefaultPorts();
-        var connection = await ConnectionMultiplexer.ConnectAsync(config, writer);
-        connection.ConnectionFailed += (_, e) =>
-        {
-            Console.WriteLine(e.Exception?.ToString());
-            Console.WriteLine("Connection to Redis failed.");
-        };
-
-        if (!connection.IsConnected)
-        {
-            Console.WriteLine("Did not connect to Redis.");
-        }
-
-        return connection;
-    };
-});
-
+    });
+}
 
 var app = builder.Build();
 

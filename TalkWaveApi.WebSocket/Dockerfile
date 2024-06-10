@@ -15,6 +15,7 @@ RUN dotnet publish -c release -o /app
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
 COPY --from=build /app ./
-EXPOSE 80
-ENV ASPNETCORE_URLS=http://*:80 
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=30s --start-period=60s --retries=3 CMD [ "curl --ipv4 http://localhost:8080/health" ]
 ENTRYPOINT ["dotnet", "TalkWaveApi.WebSocket.dll"]
