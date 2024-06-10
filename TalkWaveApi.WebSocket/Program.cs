@@ -84,7 +84,6 @@ if (RedisConnection != null)
     }).AddStackExchangeRedis(RedisConnection, options =>
     {
         options.Configuration.Ssl = true;
-        options.Configuration.SslProtocols = System.Security.Authentication.SslProtocols.Tls13;
         options.Configuration.AbortOnConnectFail = false;
     });
 }
