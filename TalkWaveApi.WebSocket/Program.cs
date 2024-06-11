@@ -30,7 +30,7 @@ builder.Services.AddCors(p => p.AddPolicy("prod", builder =>
 }));
 
 builder.Services.AddDbContext<DatabaseContext>(options =>
-options.UseNpgsql(Configuration.GetConnectionString("DefaultConnection"),
+options.UseNpgsql("Server=talkwave.cdgsao6goy8f.us-east-2.rds.amazonaws.com;Port=5432;Database=TalkWave;Username=postgres;password=Uq85xSNS4c4Q86kD",
 x => x.EnableRetryOnFailure(5, TimeSpan.FromSeconds(10), null)));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
