@@ -30,7 +30,8 @@ builder.Services.AddCors(p => p.AddPolicy("prod", builder =>
 }));
 
 builder.Services.AddDbContext<DatabaseContext>(options =>
-options.UseNpgsql(Configuration.GetConnectionString("DefaultConnection"), x => x.MigrationsHistoryTable("_EfMigrations", Configuration.GetSection("Schema").GetSection("TalkwaveDataSchema").Value)));
+options.UseNpgsql(Configuration.GetConnectionString("DefaultConnection"),
+x => x.EnableRetryOnFailure(5, TimeSpan.FromSeconds(10), null)));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 builder.Services.AddHealthChecks();
