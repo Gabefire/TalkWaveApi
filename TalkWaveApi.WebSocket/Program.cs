@@ -21,17 +21,18 @@ builder.Services.AddSingleton<IUserIdProvider, UserIdProvider>();
 
 builder.Services.AddCors(p => p.AddPolicy("dev", builder =>
 {
-    builder.WithOrigins("http://localhost:5173").AllowAnyMethod().AllowAnyHeader().AllowCredentials();
+    builder.WithOrigins(["http://localhost:5174"]).AllowAnyMethod().AllowAnyHeader().AllowCredentials();
 }));
 
 builder.Services.AddCors(p => p.AddPolicy("prod", builder =>
 {
-    builder.WithOrigins("https://talkwaveapp.com").AllowAnyMethod().AllowAnyHeader().AllowCredentials();
+    builder.WithOrigins(["https://talkwaveapp.com"]).AllowAnyMethod().AllowAnyHeader().AllowCredentials();
 }));
 
+
 builder.Services.AddDbContext<DatabaseContext>(options =>
-options.UseNpgsql("Server=talkwave.cdgsao6goy8f.us-east-2.rds.amazonaws.com;Port=5432;Database=TalkWave;Username=postgres;password=Uq85xSNS4c4Q86kD",
-x => x.EnableRetryOnFailure(5, TimeSpan.FromSeconds(10), null)));
+options.UseNpgsql(Configuration.GetConnectionString("DefaultConnection")
+));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 builder.Services.AddHealthChecks();
@@ -84,12 +85,11 @@ builder.Services.AddSignalR(hubOptions =>
 
 var app = builder.Build();
 
-
 if (app.Environment.IsDevelopment())
 {
     app.UseCors("dev");
 }
-else
+else if (app.Environment.IsProduction())
 {
     app.UseCors("prod");
 }
