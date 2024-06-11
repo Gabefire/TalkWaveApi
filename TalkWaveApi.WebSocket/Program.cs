@@ -21,18 +21,22 @@ builder.Services.AddSingleton<IUserIdProvider, UserIdProvider>();
 
 builder.Services.AddCors(p => p.AddPolicy("dev", builder =>
 {
-    builder.WithOrigins(["http://localhost:5174"]).AllowAnyMethod().AllowAnyHeader().AllowCredentials();
+    builder.WithOrigins("http://localhost:5173").AllowAnyMethod().AllowAnyHeader().AllowCredentials();
 }));
 
 builder.Services.AddCors(p => p.AddPolicy("prod", builder =>
 {
-    builder.WithOrigins(["https://talkwaveapp.com"]).AllowAnyMethod().AllowAnyHeader().AllowCredentials();
+    builder.WithOrigins("https://talkwaveapp.com").AllowAnyMethod().AllowAnyHeader().AllowCredentials();
 }));
 
 
 builder.Services.AddDbContext<DatabaseContext>(options =>
-options.UseNpgsql(Configuration.GetConnectionString("DefaultConnection")
-));
+options.UseNpgsql(Configuration.GetConnectionString("DefaultConnection"), x =>
+{
+    x.MigrationsHistoryTable("_EfMigrations", Configuration.GetSection("Schema").GetSection("TalkwaveDataSchema").Value);
+    x.EnableRetryOnFailure();
+}));
+
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 builder.Services.AddHealthChecks();
