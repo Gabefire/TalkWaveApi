@@ -12,9 +12,13 @@ using TalkWaveApi.WebSocket.Services;
 namespace TalkWaveApi.WebSocket.Hubs
 {
     [Authorize]
-    public class ChatHub(DatabaseContext dbContext) : Hub
+    public class ChatHub : Hub
     {
-        private readonly DatabaseContext _context = dbContext;
+        private readonly DatabaseContext _context;
+        public ChatHub(DatabaseContext dbContext)
+        {
+            _context = dbContext;
+        }
         public async Task JoinGroup(string groupId)
         {
             string? userId = Context.UserIdentifier;
