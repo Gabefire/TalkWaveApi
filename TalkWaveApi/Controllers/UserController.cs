@@ -131,6 +131,7 @@ public class UserController(IConfiguration configuration, DatabaseContext contex
         List<Claim> claims =
         [
             new(ClaimTypes.NameIdentifier, user.UserId.ToString()),
+            new(ClaimTypes.Email, user.Email),
         ];
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(

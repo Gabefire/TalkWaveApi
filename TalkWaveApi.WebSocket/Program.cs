@@ -17,7 +17,7 @@ var Configuration = builder.Configuration;
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
-builder.Services.AddSingleton<IUserIdProvider, UserIdProvider>();
+builder.Services.AddSingleton<IUserIdProvider, EmailBasedUserIdProvider>();
 
 builder.Services.AddCors(p => p.AddPolicy("dev", builder =>
 {
@@ -28,15 +28,6 @@ builder.Services.AddCors(p => p.AddPolicy("prod", builder =>
 {
     builder.WithOrigins("https://talkwaveapp.com").AllowAnyMethod().AllowAnyHeader().AllowCredentials();
 }));
-
-
-builder.Services.AddDbContext<DatabaseContext>(options =>
-options.UseNpgsql(Configuration.GetConnectionString("DefaultConnection"), x =>
-{
-    x.EnableRetryOnFailure();
-}));
-
-builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 builder.Services.AddHealthChecks();
 
@@ -113,6 +104,6 @@ public class EmailBasedUserIdProvider : IUserIdProvider
 {
     public virtual string GetUserId(HubConnectionContext connection)
     {
-        return connection.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value!;
+        return connection.User?.FindFirst(ClaimTypes.Email)?.Value!;
     }
 }
