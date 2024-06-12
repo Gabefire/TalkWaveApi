@@ -28,13 +28,8 @@ namespace TalkWaveApi.WebSocket.Hubs
                 Context.Abort();
                 return;
             }
-            User? user = await _context.Users.FindAsync(userParsedId);
-            if (user == null)
-            {
-                Context.Abort();
-                return;
-            }
-            await ValidateChannel(groupId, user, Context);
+
+            await ValidateChannel(groupId, userParsedId, Context);
             await Groups.AddToGroupAsync(Context.ConnectionId, groupId);
 
         }
@@ -77,7 +72,7 @@ namespace TalkWaveApi.WebSocket.Hubs
 
             await Clients.Group(groupId).SendAsync("ReceiveMessage", user.UserId, messageDto);
         }
-        public async Task ValidateChannel(string Id, User user, HubCallerContext context)
+        public async Task ValidateChannel(string Id, int UserId, HubCallerContext context)
         {
             //Validate Id can be casted as int
             if (!int.TryParse(Id, out int ChannelId))
@@ -93,7 +88,7 @@ namespace TalkWaveApi.WebSocket.Hubs
             }
 
             //Validate user is in channel
-            var userTest = await _context.ChannelUsersStatuses.Where(x => x.ChannelId == ChannelId).Where(x => x.UserId == user.UserId).FirstOrDefaultAsync();
+            var userTest = await _context.ChannelUsersStatuses.Where(x => x.ChannelId == ChannelId).Where(x => x.UserId == UserId).FirstOrDefaultAsync();
             if (userTest == null)
             {
                 context.Abort();
