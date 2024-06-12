@@ -33,7 +33,6 @@ builder.Services.AddCors(p => p.AddPolicy("prod", builder =>
 builder.Services.AddDbContext<DatabaseContext>(options =>
 options.UseNpgsql(Configuration.GetConnectionString("DefaultConnection"), x =>
 {
-    x.MigrationsHistoryTable("_EfMigrations", Configuration.GetSection("Schema").GetSection("TalkwaveDataSchema").Value);
     x.EnableRetryOnFailure();
 }));
 
@@ -114,6 +113,6 @@ public class EmailBasedUserIdProvider : IUserIdProvider
 {
     public virtual string GetUserId(HubConnectionContext connection)
     {
-        return connection.User?.FindFirst(ClaimTypes.Email)?.Value!;
+        return connection.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value!;
     }
 }
