@@ -1,6 +1,4 @@
 using TalkWaveApi.WebSocket.Hubs;
-using TalkWaveApi.WebSocket.Services;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
