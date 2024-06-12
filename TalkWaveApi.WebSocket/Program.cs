@@ -24,7 +24,7 @@ builder.Services.AddCors(p => p.AddPolicy("dev", builder =>
 
 builder.Services.AddCors(p => p.AddPolicy("prod", builder =>
 {
-    builder.WithOrigins("https://talkwaveapp.com").AllowAnyMethod().AllowAnyHeader().AllowCredentials();
+    builder.AllowAnyMethod().AllowAnyHeader().AllowCredentials().SetIsOriginAllowed((host) => true);
 }));
 
 builder.Services.AddHealthChecks();
