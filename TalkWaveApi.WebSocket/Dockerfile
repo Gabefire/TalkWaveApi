@@ -17,5 +17,7 @@ WORKDIR /app
 COPY --from=build /app ./
 EXPOSE 8080
 EXPOSE 5432
+RUN apt-get update && apt-get install -y \
+    curl
 
 ENTRYPOINT ["dotnet", "TalkWaveApi.WebSocket.dll"]
