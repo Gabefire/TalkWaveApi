@@ -1,13 +1,10 @@
-using TalkWaveApi.WebSocket.Hubs;
 using TalkWaveApi.WebSocket.Services;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
-using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Logging.ClearProviders();
@@ -34,6 +31,8 @@ options.UseNpgsql(Configuration.GetConnectionString("DefaultConnection"), x => x
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 builder.Services.AddHealthChecks();
+
+builder.Services.AddControllers();
 
 builder.Services.AddAuthentication(options =>
 {
@@ -72,50 +71,6 @@ builder.Services.AddAuthentication(options =>
       };
   });
 
-var RedisConnection = builder.Configuration.GetConnectionString("RedisConnection");
-
-if (RedisConnection != null)
-{
-    builder.Services.AddSignalR(hubOptions =>
-    {
-        hubOptions.EnableDetailedErrors = true;
-        hubOptions.KeepAliveInterval = TimeSpan.FromSeconds(10);
-        hubOptions.HandshakeTimeout = TimeSpan.FromSeconds(5);
-    }).AddStackExchangeRedis(RedisConnection, options =>
-    {
-        options.ConnectionFactory = async writer =>
-        {
-            var config = new ConfigurationOptions
-            {
-                AbortOnConnectFail = false,
-                Ssl = true
-            };
-            var connection = await ConnectionMultiplexer.ConnectAsync(config, writer);
-            connection.ConnectionFailed += (_, e) =>
-            {
-                Console.WriteLine(e.Exception?.ToString());
-                Console.WriteLine("Connection to Redis failed.");
-            };
-
-            if (!connection.IsConnected)
-            {
-                Console.WriteLine("Did not connect to Redis.");
-            }
-
-            return connection;
-        };
-    });
-}
-else
-{
-    builder.Services.AddSignalR(hubOptions =>
-    {
-        hubOptions.EnableDetailedErrors = true;
-        hubOptions.KeepAliveInterval = TimeSpan.FromSeconds(10);
-        hubOptions.HandshakeTimeout = TimeSpan.FromSeconds(5);
-    });
-}
-
 var app = builder.Build();
 
 
@@ -128,11 +83,22 @@ else
     app.UseCors("prod");
 }
 
+//Todo see if allowedOrigins will be needed
+var webSocketOptions = new WebSocketOptions
+{
+    KeepAliveInterval = TimeSpan.FromSeconds(30)
+};
+app.UseWebSockets(webSocketOptions);
+
+
 app.UseAuthentication();
 app.UseRouting();
 app.UseAuthorization();
 app.MapHealthChecks("/health");
-app.MapHub<ChatHub>("/api/Message");
+app.UseEndpoints(endpoints =>
+        {
+            _ = endpoints.MapControllers();
+        });
 app.Run();
 
 
