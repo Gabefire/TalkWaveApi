@@ -4,11 +4,11 @@ ENV DOTNET_EnableWriteXorExecute=0
 WORKDIR /source
 
 # copy csproj and restore as distinct layers
-COPY ./TalkWaveApi/TalkWaveApi.csproj .
+COPY ./TalkWaveApi.csproj .
 RUN dotnet restore
 
 # copy everything else and build app
-COPY ./TalkWaveApi/. .
+COPY . .
 RUN dotnet publish -c release -o /app
 
 # final stage/image
