@@ -1,4 +1,4 @@
-using TalkWaveApi.WebSocket.Services;
+using TalkWaveApi.WebSocket.Hubs;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -14,7 +14,7 @@ var Configuration = builder.Configuration;
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
-builder.Services.AddSingleton<IUserIdProvider, UserIdProvider>();
+builder.Services.AddSingleton<IUserIdProvider, EmailBasedUserIdProvider>();
 
 builder.Services.AddCors(p => p.AddPolicy("dev", builder =>
 {
@@ -23,12 +23,8 @@ builder.Services.AddCors(p => p.AddPolicy("dev", builder =>
 
 builder.Services.AddCors(p => p.AddPolicy("prod", builder =>
 {
-    builder.WithOrigins("https://talkwaveapp.com").AllowAnyMethod().AllowAnyHeader().AllowCredentials();
+    builder.AllowAnyMethod().AllowAnyHeader().AllowCredentials().SetIsOriginAllowed((host) => true);
 }));
-
-builder.Services.AddDbContext<DatabaseContext>(options =>
-options.UseNpgsql(Configuration.GetConnectionString("DefaultConnection"), x => x.MigrationsHistoryTable("_EfMigrations", Configuration.GetSection("Schema").GetSection("TalkwaveDataSchema").Value)));
-builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 builder.Services.AddHealthChecks();
 
@@ -71,14 +67,22 @@ builder.Services.AddAuthentication(options =>
       };
   });
 
-var app = builder.Build();
 
+
+builder.Services.AddSignalR(hubOptions =>
+    {
+        hubOptions.EnableDetailedErrors = true;
+        hubOptions.KeepAliveInterval = TimeSpan.FromSeconds(10);
+        hubOptions.HandshakeTimeout = TimeSpan.FromSeconds(5);
+    });
+
+var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
     app.UseCors("dev");
 }
-else
+else if (app.Environment.IsProduction())
 {
     app.UseCors("prod");
 }
@@ -95,10 +99,11 @@ app.UseAuthentication();
 app.UseRouting();
 app.UseAuthorization();
 app.MapHealthChecks("/health");
-app.UseEndpoints(endpoints =>
-        {
-            _ = endpoints.MapControllers();
-        });
+app.MapHub<ChatHub>("/api/Message");
+app.MapGet("/", async context =>
+    {
+        await context.Response.WriteAsync("Welcome to running ASP.NET Core on ECS");
+    });
 app.Run();
 
 
