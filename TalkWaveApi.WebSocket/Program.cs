@@ -1,10 +1,13 @@
 using TalkWaveApi.WebSocket.Hubs;
+using TalkWaveApi.WebSocket.Services;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Logging.ClearProviders();
@@ -14,7 +17,7 @@ var Configuration = builder.Configuration;
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
-builder.Services.AddSingleton<IUserIdProvider, EmailBasedUserIdProvider>();
+builder.Services.AddSingleton<IUserIdProvider, UserIdProvider>();
 
 builder.Services.AddCors(p => p.AddPolicy("dev", builder =>
 {
@@ -23,12 +26,20 @@ builder.Services.AddCors(p => p.AddPolicy("dev", builder =>
 
 builder.Services.AddCors(p => p.AddPolicy("prod", builder =>
 {
-    builder.AllowAnyMethod().AllowAnyHeader().AllowCredentials().SetIsOriginAllowed((host) => true);
+    builder.WithOrigins("https://talkwaveapp.com").AllowAnyMethod().AllowAnyHeader().AllowCredentials();
 }));
 
-builder.Services.AddHealthChecks();
 
-builder.Services.AddControllers();
+builder.Services.AddDbContext<DatabaseContext>(options =>
+options.UseNpgsql(Configuration.GetConnectionString("DefaultConnection"), x =>
+{
+    x.MigrationsHistoryTable("_EfMigrations", Configuration.GetSection("Schema").GetSection("TalkwaveDataSchema").Value);
+    x.EnableRetryOnFailure();
+}));
+
+builder.Services.AddDatabaseDeveloperPageExceptionFilter();
+
+builder.Services.AddHealthChecks();
 
 builder.Services.AddAuthentication(options =>
 {
@@ -87,14 +98,6 @@ else if (app.Environment.IsProduction())
     app.UseCors("prod");
 }
 
-//Todo see if allowedOrigins will be needed
-var webSocketOptions = new WebSocketOptions
-{
-    KeepAliveInterval = TimeSpan.FromSeconds(30)
-};
-app.UseWebSockets(webSocketOptions);
-
-
 app.UseAuthentication();
 app.UseRouting();
 app.UseAuthorization();
@@ -105,12 +108,3 @@ app.MapGet("/", async context =>
         await context.Response.WriteAsync("Welcome to running ASP.NET Core on ECS");
     });
 app.Run();
-
-
-public class EmailBasedUserIdProvider : IUserIdProvider
-{
-    public virtual string GetUserId(HubConnectionContext connection)
-    {
-        return connection.User?.FindFirst(ClaimTypes.Email)?.Value!;
-    }
-}

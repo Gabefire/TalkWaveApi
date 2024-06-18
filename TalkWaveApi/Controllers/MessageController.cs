@@ -13,12 +13,10 @@ namespace TalkWaveApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class MessageController(DatabaseContext context, ILogger<MessageController> logger, IValidator validator) : ControllerBase
+public class MessageController(DatabaseContext context, IValidator validator) : ControllerBase
 {
     private readonly DatabaseContext _context = context;
-    private readonly ILogger _logger = logger;
     private readonly IValidator _validate = validator;
-    private static System.Timers.Timer? timer;
 
     [HttpGet("{Id}")]
     public async Task<ActionResult> GetMessages(string Id)
