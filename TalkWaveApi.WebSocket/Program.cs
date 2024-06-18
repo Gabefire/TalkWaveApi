@@ -34,7 +34,6 @@ builder.Services.AddDbContext<DatabaseContext>(options =>
 options.UseNpgsql(Configuration.GetConnectionString("DefaultConnection"), x =>
 {
     x.MigrationsHistoryTable("_EfMigrations", Configuration.GetSection("Schema").GetSection("TalkwaveDataSchema").Value);
-    x.EnableRetryOnFailure();
 }));
 
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
