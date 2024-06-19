@@ -34,7 +34,6 @@ builder.Services.AddDbContext<DatabaseContext>(options =>
 options.UseNpgsql(Configuration.GetConnectionString("DefaultConnection"), x =>
 {
     x.MigrationsHistoryTable("_EfMigrations", Configuration.GetSection("Schema").GetSection("TalkwaveDataSchema").Value);
-    x.EnableRetryOnFailure();
 }));
 
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
@@ -85,7 +84,7 @@ builder.Services.AddSignalR(hubOptions =>
         hubOptions.EnableDetailedErrors = true;
         hubOptions.KeepAliveInterval = TimeSpan.FromSeconds(10);
         hubOptions.HandshakeTimeout = TimeSpan.FromSeconds(5);
-    });
+    }).AddStackExchangeRedis("talkwaveselfdesigned.vxc8e3.ng.0001.use2.cache.amazonaws.com:6379");
 
 var app = builder.Build();
 
