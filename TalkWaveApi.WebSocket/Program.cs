@@ -86,6 +86,8 @@ builder.Services.AddSignalR(hubOptions =>
         hubOptions.HandshakeTimeout = TimeSpan.FromSeconds(5);
     }).AddStackExchangeRedis("talkwavews-vxc8e3.serverless.use2.cache.amazonaws.com:6379", options =>
     {
+        options.Configuration.Ssl = true;
+        options.Configuration.SslProtocols = System.Security.Authentication.SslProtocols.Tls12;
         options.Configuration.AbortOnConnectFail = false;
     });
 
