@@ -37,8 +37,8 @@ permissions:
 env:
   AWS_REGION: us-east-2 # set this to your preferred AWS region, e.g. us-west-1
   ECR_REPOSITORY: 584742206045.dkr.ecr.us-east-2.amazonaws.com/talkwaveapi # set this to your Amazon ECR repository name
-  ECS_SERVICE: TalkWaveApiWS # set this to your Amazon ECS service name
-  ECS_CLUSTER: TalkWaveClusterSignalR # set this to your Amazon ECS cluster name
+  ECS_SERVICE: TalkWaveAPIProdService # set this to your Amazon ECS service name
+  ECS_CLUSTER: ProdClusterTalkWaveAPI # set this to your Amazon ECS cluster name
   ECS_TASK_DEFINITION:
     ./.aws/TalkWaveApiTask.json # set this to the path to your Amazon ECS task definition
     # file, e.g. .aws/task-definition.json
