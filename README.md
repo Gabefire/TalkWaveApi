@@ -24,10 +24,6 @@ AWS infrastructure:
 - Fully managed database
 - Live chat implemented using [SignalR](https://dotnet.microsoft.com/en-us/apps/aspnet/signalr)
 
-
-## Usage
-You can start using the app by visiting the [TalkWave](https://talkwaveapp.com/) website. You can create an account, and start chatting with your friends and others.
-
 ## Planned features
 - [ ] Create a separate auth controller outside the mono repo
 - [ ] User profile pictures
