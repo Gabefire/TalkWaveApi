@@ -84,7 +84,7 @@ builder.Services.AddSignalR(hubOptions =>
         hubOptions.EnableDetailedErrors = true;
         hubOptions.KeepAliveInterval = TimeSpan.FromSeconds(10);
         hubOptions.HandshakeTimeout = TimeSpan.FromSeconds(5);
-    }).AddStackExchangeRedis("talkwaveapiserverless-vxc8e3.serverless.use2.cache.amazonaws.com", o =>
+    }).AddStackExchangeRedis("master.talkwavecustomcluster.vxc8e3.use2.cache.amazonaws.com:6379", o =>
     {
         o.Configuration.Ssl = true;
         o.Configuration.AbortOnConnectFail = false;
