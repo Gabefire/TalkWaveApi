@@ -86,10 +86,6 @@ builder.Services.AddSignalR(hubOptions =>
         hubOptions.HandshakeTimeout = TimeSpan.FromSeconds(15);
         hubOptions.MaximumParallelInvocationsPerClient = 5;
 
-    }).AddStackExchangeRedis("talkwaveapiserverless-vxc8e3.serverless.use2.cache.amazonaws.com", o =>
-    {
-        o.Configuration.Ssl = true;
-        o.Configuration.AbortOnConnectFail = false;
     });
 
 var app = builder.Build();
